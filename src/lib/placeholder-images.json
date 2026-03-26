@@ -1,0 +1,28 @@
+{
+  "placeholderImages": [
+    {
+      "id": "onboarding-1",
+      "description": "A person happily taking a photo of a dog in a park.",
+      "imageUrl": "https://images.unsplash.com/photo-1652678081460-5925feb8a08d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxwZXJzb24lMjBkb2d8ZW58MHx8fHwxNzY2MjU3Njc1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person dog"
+    },
+    {
+      "id": "onboarding-2",
+      "description": "A phone screen showing a dog's photo with AI recognition details.",
+      "imageUrl": "https://images.unsplash.com/photo-1700864208310-0849428c612f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8cGhvbmUlMjBzY3JlZW58ZW58MHx8fHwxNzY2MjM5NDg2fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "phone screen"
+    },
+    {
+      "id": "onboarding-3",
+      "description": "A grid of collected dog photos, like a personal gallery.",
+      "imageUrl": "https://images.unsplash.com/photo-1547296017-978c31e1c124?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxwaG90byUyMGdhbGxlcnl8ZW58MHx8fHwxNzY2MjUyNTA5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "photo gallery"
+    },
+    {
+      "id": "dog-avatar-default",
+      "description": "A generic, friendly-looking dog silhouette or icon.",
+      "imageUrl": "https://images.unsplash.com/photo-1746661767821-784dd766eec9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxkb2clMjBzaWxob3VldHRlfGVufDB8fHx8MTc2NjI2MDY3Nnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "dog silhouette"
+    }
+  ]
+}
