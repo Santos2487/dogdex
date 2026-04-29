@@ -7,7 +7,7 @@ import {
   collection,
   getDocs,
   query,
-  where
+  where,
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
@@ -45,18 +45,15 @@ export async function saveCapture(
 
       const userData = userDoc.data() as UserProfile;
 
-      // Check if breed is new
       const entriesRef = collection(db, 'users', userId, 'entries');
       const q = query(entriesRef, where('breedName', '==', data.breedName));
       const existingBreedDocs = await getDocs(q);
       const isNewBreed = existingBreedDocs.empty;
 
-      // Calculate XP
-      let newXp = userData.xp + 1; // +1 XP per capture
-      if (isNewBreed) newXp += 2; // +2 XP if new breed
-      if (data.rarity === 'Rare') newXp += 1; // +1 XP if rare
+      let newXp = userData.xp + 1;
+      if (isNewBreed) newXp += 2;
+      if (data.rarity === 'Rare') newXp += 1;
 
-      // Update user stats
       const newTotalCaptures = userData.totalCaptures + 1;
       const newUniqueBreedsCount = isNewBreed
         ? userData.uniqueBreedsCount + 1
@@ -64,17 +61,7 @@ export async function saveCapture(
 
       const newLevel = getLevelFromXp(newXp).level;
 
-      const updatedUserData: Partial<UserProfile> = {
-        xp: newXp,
-        level: newLevel,
-        totalCaptures: newTotalCaptures,
-        uniqueBreedsCount: newUniqueBreedsCount,
-      };
-
-      // Create new entry
-      const entryRef = doc(db, 'users', userId, 'entries', entryId);
-
-      transaction.set(entryRef, {
+      transaction.set(doc(db, 'users', userId, 'entries', entryId), {
         photoUrl,
         ...data,
         confidence,
@@ -83,16 +70,8 @@ export async function saveCapture(
         aiProvider: 'gemini',
       });
 
-      // Update achievements
-      const achievementsRef = collection(
-        db,
-        'users',
-        userId,
-        'achievements'
-      );
-
+      const achievementsRef = collection(db, 'users', userId, 'achievements');
       const achievementsSnapshot = await getDocs(query(achievementsRef));
-
       const achievements = achievementsSnapshot.docs.map((d) => ({
         id: d.id,
         ...d.data(),
@@ -123,13 +102,7 @@ export async function saveCapture(
             currentProgress = newRareCapturesCount;
           }
 
-          const achRef = doc(
-            db,
-            'users',
-            userId,
-            'achievements',
-            achDef.id
-          );
+          const achRef = doc(db, 'users', userId, 'achievements', achDef.id);
 
           if (currentProgress >= achDef.target) {
             transaction.update(achRef, {
@@ -145,8 +118,12 @@ export async function saveCapture(
         }
       }
 
-      // Update user doc
-      transaction.update(userRef, updatedUserData);
+      transaction.update(userRef, {
+        xp: newXp,
+        level: newLevel,
+        totalCaptures: newTotalCaptures,
+        uniqueBreedsCount: newUniqueBreedsCount,
+      });
     });
 
     revalidatePath('/collection');
@@ -192,10 +169,7 @@ export async function deleteCapture(
       transaction.delete(entryRef);
 
       transaction.update(userRef, {
-        totalCaptures: Math.max(
-          (userData.totalCaptures || 1) - 1,
-          0
-        ),
+        totalCaptures: Math.max((userData.totalCaptures || 1) - 1, 0),
       });
     });
 
@@ -209,6 +183,42 @@ export async function deleteCapture(
     return {
       success: false,
       error: e.message || 'Failed to delete capture.',
+    };
+  }
+}
+
+export async function toggleFavorite(
+  userId: string,
+  entryId: string,
+  favorite: boolean
+): Promise<{ success: boolean; error?: string }> {
+  if (!userId) {
+    return { success: false, error: 'User not authenticated.' };
+  }
+
+  if (!entryId) {
+    return { success: false, error: 'Entry not found.' };
+  }
+
+  try {
+    const entryRef = doc(db, 'users', userId, 'entries', entryId);
+
+    await runTransaction(db, async (transaction) => {
+      transaction.update(entryRef, {
+        favorite,
+      });
+    });
+
+    revalidatePath('/collection');
+    revalidatePath(`/entry/${entryId}`);
+
+    return { success: true };
+  } catch (e: any) {
+    console.error('Favorite update failed:', e);
+
+    return {
+      success: false,
+      error: e.message || 'Failed to update favorite.',
     };
   }
 }

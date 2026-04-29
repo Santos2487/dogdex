@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { deleteCapture } from '@/app/actions';
+import { deleteCapture, toggleFavorite } from '@/app/actions';
 
 import type { DogEntry } from '@/types';
 
@@ -18,7 +18,7 @@ import {
   Percent,
   Tag,
   FileText,
-  Trash2
+  Trash2,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,7 @@ import {
   Card,
   CardContent,
   CardHeader,
-  CardTitle
+  CardTitle,
 } from '@/components/ui/card';
 
 import { format } from 'date-fns';
@@ -37,7 +37,7 @@ import Balancer from 'react-wrap-balancer';
 function DetailItem({
   icon: Icon,
   label,
-  value
+  value,
 }: {
   icon: React.ElementType;
   label: string;
@@ -50,13 +50,8 @@ function DetailItem({
       </div>
 
       <div>
-        <p className="text-sm font-medium text-muted-foreground">
-          {label}
-        </p>
-
-        <p className="text-base font-semibold text-foreground">
-          {value}
-        </p>
+        <p className="text-sm font-medium text-muted-foreground">{label}</p>
+        <div className="text-base font-semibold text-foreground">{value}</div>
       </div>
     </div>
   );
@@ -72,18 +67,12 @@ export default function EntryDetailPage() {
   const [entry, setEntry] = useState<DogEntry | null>(null);
   const [loading, setLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isUpdatingFavorite, setIsUpdatingFavorite] = useState(false);
 
   useEffect(() => {
     if (user && id) {
       const getEntry = async () => {
-        const entryRef = doc(
-          db,
-          'users',
-          user.uid,
-          'entries',
-          id as string
-        );
-
+        const entryRef = doc(db, 'users', user.uid, 'entries', id as string);
         const docSnap = await getDoc(entryRef);
 
         if (docSnap.exists()) {
@@ -123,6 +112,32 @@ export default function EntryDetailPage() {
     }
   }
 
+  async function handleToggleFavorite() {
+    if (!user || !entry?.id || isUpdatingFavorite) return;
+
+    const nextFavorite = !entry.favorite;
+
+    setEntry({
+      ...entry,
+      favorite: nextFavorite,
+    });
+
+    setIsUpdatingFavorite(true);
+
+    const result = await toggleFavorite(user.uid, entry.id, nextFavorite);
+
+    if (!result.success) {
+      setEntry({
+        ...entry,
+        favorite: !nextFavorite,
+      });
+
+      alert(result.error || 'Failed to update favorite.');
+    }
+
+    setIsUpdatingFavorite(false);
+  }
+
   if (loading) {
     return (
       <div className="container mx-auto max-w-2xl p-4 space-y-4">
@@ -155,8 +170,8 @@ export default function EntryDetailPage() {
           <Image
             src={entry.photoUrl}
             alt={entry.name || entry.breedName}
-            layout="fill"
-            objectFit="cover"
+            fill
+            className="object-cover"
             priority
           />
         </div>
@@ -165,9 +180,7 @@ export default function EntryDetailPage() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <CardTitle className="text-3xl font-bold">
-                <Balancer>
-                  {entry.name || entry.breedName}
-                </Balancer>
+                <Balancer>{entry.name || entry.breedName}</Balancer>
               </CardTitle>
 
               {entry.name && (
@@ -177,21 +190,43 @@ export default function EntryDetailPage() {
               )}
             </div>
 
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleDelete}
-              disabled={isDeleting}
-            >
-              {isDeleting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
-                </>
-              )}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant={entry.favorite ? 'default' : 'outline'}
+                size="sm"
+                onClick={handleToggleFavorite}
+                disabled={isUpdatingFavorite}
+              >
+                {isUpdatingFavorite ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Heart
+                      className={`mr-2 h-4 w-4 ${
+                        entry.favorite ? 'fill-current' : ''
+                      }`}
+                    />
+                    {entry.favorite ? 'Favorited' : 'Favorite'}
+                  </>
+                )}
+              </Button>
+
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </CardHeader>
 
@@ -218,8 +253,8 @@ export default function EntryDetailPage() {
                     entry.rarity === 'Rare'
                       ? 'destructive'
                       : entry.rarity === 'Uncommon'
-                      ? 'secondary'
-                      : 'default'
+                        ? 'secondary'
+                        : 'default'
                   }
                 >
                   {entry.rarity}
@@ -238,11 +273,7 @@ export default function EntryDetailPage() {
             <DetailItem
               icon={FileText}
               label="Notes"
-              value={
-                <p className="whitespace-pre-wrap">
-                  {entry.notes}
-                </p>
-              }
+              value={<p className="whitespace-pre-wrap">{entry.notes}</p>}
             />
           )}
         </CardContent>
