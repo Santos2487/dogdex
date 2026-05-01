@@ -1,7 +1,16 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { BarChart3, Heart, PawPrint, Star, Trophy } from 'lucide-react';
+import {
+  BarChart3,
+  Heart,
+  PawPrint,
+  Star,
+  Trophy,
+  Gem,
+  Sparkles,
+  Target,
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/contexts/AuthContext';
@@ -33,11 +42,33 @@ function StatCard({
       </CardHeader>
       <CardContent>
         <p className="text-3xl font-bold">{value}</p>
-        {subtitle && (
-          <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
-        )}
+        {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
       </CardContent>
     </Card>
+  );
+}
+
+function RarityRow({
+  label,
+  count,
+  total,
+}: {
+  label: string;
+  count: number;
+  total: number;
+}) {
+  const percent = total > 0 ? Math.round((count / total) * 100) : 0;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-sm">
+        <span className="font-medium">{label}</span>
+        <span className="text-muted-foreground">
+          {count} · {percent}%
+        </span>
+      </div>
+      <Progress value={percent} />
+    </div>
   );
 }
 
@@ -92,15 +123,19 @@ export default function StatsPage() {
       (a, b) => b[1] - a[1]
     )[0];
 
-    const mostCapturedBreed = mostCapturedBreedEntry
-      ? `${mostCapturedBreedEntry[0]} (${mostCapturedBreedEntry[1]})`
-      : 'None yet';
+    const rare = entries.filter((entry) => entry.rarity === 'Rare').length;
+    const uncommon = entries.filter((entry) => entry.rarity === 'Uncommon').length;
+    const common = entries.filter((entry) => entry.rarity === 'Common').length;
 
     return {
       total,
       favorites,
       favoritePercent,
-      mostCapturedBreed,
+      mostCapturedBreed: mostCapturedBreedEntry?.[0] || 'None yet',
+      mostCapturedBreedCount: mostCapturedBreedEntry?.[1] || 0,
+      common,
+      uncommon,
+      rare,
     };
   }, [entries]);
 
@@ -124,7 +159,7 @@ export default function StatsPage() {
 
   const { level, progress, requiredXpForNextLevel } = getLevelFromXp(userData.xp);
   const progressPercent =
-    requiredXpForNextLevel > 0 ? (progress / requiredXpForNextLevel) * 100 : 0;
+    requiredXpForNextLevel > 0 ? Math.round((progress / requiredXpForNextLevel) * 100) : 0;
   const xpLeft = Math.max(requiredXpForNextLevel - progress, 0);
 
   return (
@@ -135,21 +170,23 @@ export default function StatsPage() {
       </div>
 
       <div className="space-y-6">
-        <Card className="overflow-hidden">
+        <Card className="overflow-hidden border-primary/40">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Trophy className="h-5 w-5 text-primary" />
-              Level Progress
+              Level {level} Explorer
             </CardTitle>
           </CardHeader>
+
           <CardContent>
             <div className="flex justify-between items-end mb-3">
               <div>
-                <p className="text-3xl font-bold">Level {level}</p>
+                <p className="text-4xl font-bold">{progressPercent}%</p>
                 <p className="text-sm text-muted-foreground">
                   {xpLeft} XP left to reach Level {level + 1}
                 </p>
               </div>
+
               <p className="text-sm font-medium text-muted-foreground">
                 {progress} / {requiredXpForNextLevel} XP
               </p>
@@ -158,9 +195,9 @@ export default function StatsPage() {
             <Progress value={progressPercent} />
 
             <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-              <span>Current level</span>
-              <span>{Math.round(progressPercent)}%</span>
-              <span>Next level</span>
+              <span>Level {level}</span>
+              <span>{userData.xp} total XP</span>
+              <span>Level {level + 1}</span>
             </div>
           </CardContent>
         </Card>
@@ -177,7 +214,7 @@ export default function StatsPage() {
             title="Unique Breeds"
             value={userData.uniqueBreedsCount}
             subtitle="Different breeds discovered"
-            icon={Star}
+            icon={Sparkles}
           />
 
           <StatCard
@@ -188,12 +225,33 @@ export default function StatsPage() {
           />
 
           <StatCard
-            title="Most Captured Breed"
+            title="Top Breed"
             value={derivedStats.mostCapturedBreed}
-            subtitle="Based on your current collection"
-            icon={BarChart3}
+            subtitle={
+              derivedStats.mostCapturedBreedCount > 0
+                ? `${derivedStats.mostCapturedBreedCount} capture${
+                    derivedStats.mostCapturedBreedCount === 1 ? '' : 's'
+                  }`
+                : 'No captures yet'
+            }
+            icon={Target}
           />
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Gem className="h-5 w-5 text-primary" />
+              Rarity Breakdown
+            </CardTitle>
+          </CardHeader>
+
+          <CardContent className="space-y-5">
+            <RarityRow label="Common" count={derivedStats.common} total={derivedStats.total} />
+            <RarityRow label="Uncommon" count={derivedStats.uncommon} total={derivedStats.total} />
+            <RarityRow label="Rare" count={derivedStats.rare} total={derivedStats.total} />
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
