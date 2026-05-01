@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { dogBreeds, getRarityFromBreed } from '@/lib/data';
+import { getRarityFromBreed } from '@/lib/data';
 import { saveCapture } from '@/app/actions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -22,7 +22,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Sparkles, Wand, Gem } from 'lucide-react';
@@ -48,7 +47,7 @@ export default function ReviewForm() {
     photoDataUri,
     breedName,
     confidence,
-    rarity: aiRarity, // 👈 NUEVO
+    rarity: aiRarity,
     clearCaptureData,
   } = useCaptureStore();
 
@@ -68,7 +67,7 @@ export default function ReviewForm() {
 
   const selectedBreed = form.watch('breedName');
 
-  // 👇 CLAVE: IA + fallback
+  // IA manda, fallback por si acaso
   const finalRarity = aiRarity || getRarityFromBreed(selectedBreed || '');
 
   async function onSubmit(data: ReviewFormData) {
@@ -94,7 +93,7 @@ export default function ReviewForm() {
         user.uid,
         {
           ...data,
-          rarity: finalRarity, // 👈 usamos la buena
+          rarity: finalRarity,
         },
         photoUrl,
         confidence
@@ -102,7 +101,7 @@ export default function ReviewForm() {
 
       if (result.success) {
         toast({
-          title: 'Success!',
+          title: 'Saved!',
           description: `${data.breedName} added to your collection.`,
         });
 
@@ -119,7 +118,7 @@ export default function ReviewForm() {
       toast({
         variant: 'destructive',
         title: 'Save Failed',
-        description: e?.message || 'Failed to upload image.',
+        description: e?.message || 'Upload failed.',
       });
     } finally {
       setIsSubmitting(false);
@@ -151,7 +150,7 @@ export default function ReviewForm() {
                 <Wand className="h-4 w-4" />
                 <AlertTitle>Low Confidence</AlertTitle>
                 <AlertDescription>
-                  The AI is not very confident. Please verify the breed.
+                  The AI is not very confident. Please double-check the breed.
                 </AlertDescription>
               </Alert>
             )}
@@ -187,40 +186,32 @@ export default function ReviewForm() {
               </Badge>
             </div>
 
-            {/* Breed */}
+            {/* Breed (INPUT libre 🔥) */}
             <FormField
               control={form.control}
               name="breedName"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Breed</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select breed" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {dogBreeds.map((breed) => (
-                        <SelectItem key={breed} value={breed}>
-                          {breed}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <Input placeholder="e.g., English Bulldog" {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            {/* Name */}
+            {/* Nickname */}
             <FormField
               control={form.control}
               name="name"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Nickname</FormLabel>
-                  <Input {...field} />
+                  <FormControl>
+                    <Input placeholder="e.g., Buddy" {...field} />
+                  </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -232,7 +223,10 @@ export default function ReviewForm() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Notes</FormLabel>
-                  <Textarea {...field} />
+                  <FormControl>
+                    <Textarea placeholder="e.g., Very friendly dog" {...field} />
+                  </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />
