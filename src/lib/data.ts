@@ -14,8 +14,53 @@ export const dogBreeds = [
 export const rarities = ['Common', 'Uncommon', 'Rare'] as const;
 export type Rarity = (typeof rarities)[number];
 
-export type InitialAchievement = Omit<AchievementType, 'unlockedAt' | 'progress' | 'unlocked'> & {
-    icon: React.ElementType;
+export const breedRarityMap: Record<string, Rarity> = {
+  // Common
+  "Labrador Retriever": "Common",
+  "Golden Retriever": "Common",
+  "German Shepherd": "Common",
+  "French Bulldog": "Common",
+  "Bulldog": "Common",
+  "Poodle": "Common",
+  "Beagle": "Common",
+  "Chihuahua": "Common",
+  "Yorkshire Terrier": "Common",
+  "Dachshund": "Common",
+
+  // Uncommon
+  "Rottweiler": "Uncommon",
+  "German Shorthaired Pointer": "Uncommon",
+  "Pembroke Welsh Corgi": "Uncommon",
+  "Australian Shepherd": "Uncommon",
+  "Siberian Husky": "Uncommon",
+  "Boxer": "Uncommon",
+  "Great Dane": "Uncommon",
+  "Pomeranian": "Uncommon",
+  "Doberman Pinscher": "Uncommon",
+  "Shih Tzu": "Uncommon",
+  "Boston Terrier": "Uncommon",
+  "Maltese": "Uncommon",
+  "Border Collie": "Uncommon",
+  "Basset Hound": "Uncommon",
+
+  // Rare
+  "Shetland Sheepdog": "Rare",
+  "Bernese Mountain Dog": "Rare",
+  "Havanese": "Rare",
+  "Cane Corso": "Rare",
+  "Shiba Inu": "Rare",
+  "Akita": "Rare",
+};
+
+export function getRarityFromBreed(breedName: string): Rarity {
+  return breedRarityMap[breedName] || "Common";
+}
+
+export type InitialAchievement = Omit<
+  AchievementType,
+  'unlockedAt' | 'progress' | 'unlocked'
+> & {
+  icon: React.ElementType;
 };
 
 export const initialAchievements: InitialAchievement[] = [
@@ -43,7 +88,7 @@ export const initialAchievements: InitialAchievement[] = [
     metric: 'uniqueBreedsCount',
     icon: Target,
   },
-    {
+  {
     id: 'twenty-unique',
     title: 'Breed Expert',
     description: 'Collect 20 unique dog breeds.',
@@ -69,15 +114,19 @@ export const initialAchievements: InitialAchievement[] = [
   },
 ];
 
-
 export const getLevelFromXp = (xp: number) => {
-    // Simple exponential curve: level up every 10 * level points
-    let level = 1;
-    let requiredXp = 10;
-    while (xp >= requiredXp) {
-        xp -= requiredXp;
-        level++;
-        requiredXp = 10 * level;
-    }
-    return { level, progress: xp, requiredXpForNextLevel: requiredXp };
+  let level = 1;
+  let requiredXp = 10;
+
+  while (xp >= requiredXp) {
+    xp -= requiredXp;
+    level++;
+    requiredXp = 10 * level;
+  }
+
+  return {
+    level,
+    progress: xp,
+    requiredXpForNextLevel: requiredXp,
+  };
 };

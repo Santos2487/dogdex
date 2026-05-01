@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { dogBreeds, rarities } from '@/lib/data';
+import { dogBreeds, getRarityFromBreed } from '@/lib/data';
 import { saveCapture } from '@/app/actions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -22,10 +22,10 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, Sparkles, Wand } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, Sparkles, Wand, Gem } from 'lucide-react';
 import Balancer from 'react-wrap-balancer';
 
 export const reviewSchema = z.object({
@@ -33,7 +33,6 @@ export const reviewSchema = z.object({
   breedName: z.string().min(1, 'Breed name is required.'),
   notes: z.string().max(500, 'Notes are too long.').optional(),
   favorite: z.boolean().default(false),
-  rarity: z.enum(rarities).default('Common'),
 });
 
 type ReviewFormData = z.infer<typeof reviewSchema>;
@@ -56,9 +55,11 @@ export default function ReviewForm() {
       breedName: breedName || '',
       notes: '',
       favorite: false,
-      rarity: 'Common',
     },
   });
+
+  const selectedBreed = form.watch('breedName');
+  const automaticRarity = getRarityFromBreed(selectedBreed || '');
 
   async function onSubmit(data: ReviewFormData) {
     if (!user || !photoDataUri || confidence === null) {
@@ -79,7 +80,12 @@ export default function ReviewForm() {
       await uploadString(storageRef, photoDataUri, 'data_url');
       const photoUrl = await getDownloadURL(storageRef);
 
-      const result = await saveCapture(user.uid, data, photoUrl, confidence);
+      const dataWithAutomaticRarity = {
+        ...data,
+        rarity: getRarityFromBreed(data.breedName),
+      };
+
+      const result = await saveCapture(user.uid, dataWithAutomaticRarity, photoUrl, confidence);
 
       if (result.success) {
         toast({
@@ -113,7 +119,9 @@ export default function ReviewForm() {
           <CardHeader>
             <CardTitle>Analysis Complete</CardTitle>
             <CardDescription>
-              <Balancer>Here's what our AI found. Review the details and save this good dog to your collection.</Balancer>
+              <Balancer>
+                Here's what our AI found. Review the details and save this good dog to your collection.
+              </Balancer>
             </CardDescription>
           </CardHeader>
 
@@ -142,6 +150,24 @@ export default function ReviewForm() {
               <span className="font-bold text-lg text-primary">
                 {((confidence || 0) * 100).toFixed(0)}%
               </span>
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="flex items-center gap-2">
+                <Gem className="h-5 w-5 text-primary" />
+                <span className="font-semibold text-sm">Automatic Rarity</span>
+              </div>
+              <Badge
+                variant={
+                  automaticRarity === 'Rare'
+                    ? 'destructive'
+                    : automaticRarity === 'Uncommon'
+                    ? 'secondary'
+                    : 'default'
+                }
+              >
+                {automaticRarity}
+              </Badge>
             </div>
 
             <div className="space-y-4">
@@ -192,33 +218,6 @@ export default function ReviewForm() {
                     <FormLabel>Notes (Optional)</FormLabel>
                     <FormControl>
                       <Textarea placeholder="e.g., Met at the park, very friendly!" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="rarity"
-                render={({ field }) => (
-                  <FormItem className="space-y-3">
-                    <FormLabel>Rarity</FormLabel>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        className="flex flex-col space-y-1"
-                      >
-                        {rarities.map((rarity) => (
-                          <FormItem key={rarity} className="flex items-center space-x-3 space-y-0">
-                            <FormControl>
-                              <RadioGroupItem value={rarity} />
-                            </FormControl>
-                            <FormLabel className="font-normal">{rarity}</FormLabel>
-                          </FormItem>
-                        ))}
-                      </RadioGroup>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
