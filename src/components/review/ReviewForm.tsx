@@ -17,15 +17,13 @@ import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { v4 as uuidv4 } from 'uuid';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Sparkles, Wand, Gem } from 'lucide-react';
-import Balancer from 'react-wrap-balancer';
+import { Loader2, Gem, Sparkles } from 'lucide-react';
 
 export const reviewSchema = z.object({
   name: z.string().max(50).optional(),
@@ -35,8 +33,6 @@ export const reviewSchema = z.object({
 });
 
 type ReviewFormData = z.infer<typeof reviewSchema>;
-
-const LOW_CONFIDENCE_THRESHOLD = 0.7;
 
 export default function ReviewForm() {
   const router = useRouter();
@@ -52,8 +48,7 @@ export default function ReviewForm() {
   } = useCaptureStore();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const isLowConfidence = confidence === null || confidence < LOW_CONFIDENCE_THRESHOLD;
+  const [revealData, setRevealData] = useState<any>(null);
 
   const form = useForm<ReviewFormData>({
     resolver: zodResolver(reviewSchema),
@@ -66,19 +61,10 @@ export default function ReviewForm() {
   });
 
   const selectedBreed = form.watch('breedName');
-
-  // IA manda, fallback por si acaso
   const finalRarity = aiRarity || getRarityFromBreed(selectedBreed || '');
 
   async function onSubmit(data: ReviewFormData) {
-    if (!user || !photoDataUri || confidence === null) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Missing required data to save.',
-      });
-      return;
-    }
+    if (!user || !photoDataUri || confidence === null) return;
 
     setIsSubmitting(true);
 
@@ -91,59 +77,75 @@ export default function ReviewForm() {
 
       const result = await saveCapture(
         user.uid,
-        {
-          ...data,
-          rarity: finalRarity,
-        },
+        { ...data, rarity: finalRarity },
         photoUrl,
         confidence
       );
 
-if (result.success) {
-  const meta = result.meta;
-
-  if (meta) {
-    if (meta.isNewBreed) {
-      toast({
-        title: '✨ New Breed Discovered!',
-        description: `${data.breedName} added to your DogDex (+${meta.xpGained} XP)`,
-      });
-    } else if (meta.isRare) {
-      toast({
-        title: '🔥 Rare Capture!',
-        description: `${data.breedName} is uncommon (+${meta.xpGained} XP)`,
-      });
-    } else {
-      toast({
-        title: '📸 Captured!',
-        description: `${data.breedName} saved (+${meta.xpGained} XP)`,
-      });
-    }
-  } else {
-    toast({
-      title: 'Saved!',
-      description: `${data.breedName} added to your collection.`,
-    });
-  }
-
-  clearCaptureData();
-  router.push('/collection');
-} else {
+      if (result.success) {
+        setRevealData({
+          breed: data.breedName,
+          rarity: finalRarity,
+          meta: result.meta,
+        });
+      } else {
         toast({
           variant: 'destructive',
-          title: 'Save Failed',
+          title: 'Error',
           description: result.error,
         });
       }
     } catch (e: any) {
       toast({
         variant: 'destructive',
-        title: 'Save Failed',
-        description: e?.message || 'Upload failed.',
+        title: 'Error',
+        description: e.message,
       });
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  // 🎮 REVEAL SCREEN
+  if (revealData) {
+    const { breed, rarity, meta } = revealData;
+
+    return (
+      <div className="flex flex-col items-center justify-center text-center space-y-6 p-6">
+        <div className="text-4xl font-bold">
+          {meta?.isNewBreed ? '✨ New Breed!' : '📸 Captured!'}
+        </div>
+
+        <div className="text-2xl font-semibold">{breed}</div>
+
+        <Badge
+          variant={
+            rarity === 'Rare'
+              ? 'destructive'
+              : rarity === 'Uncommon'
+              ? 'secondary'
+              : 'default'
+          }
+        >
+          <Gem className="mr-1 h-4 w-4" />
+          {rarity}
+        </Badge>
+
+        <div className="text-lg text-muted-foreground">
+          +{meta?.xpGained || 1} XP
+        </div>
+
+        <Button
+          size="lg"
+          onClick={() => {
+            clearCaptureData();
+            router.push('/collection');
+          }}
+        >
+          Continue
+        </Button>
+      </div>
+    );
   }
 
   return (
@@ -151,12 +153,7 @@ if (result.success) {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <CardHeader>
-            <CardTitle>Analysis Complete</CardTitle>
-            <CardDescription>
-              <Balancer>
-                Review the AI result and save it to your collection.
-              </Balancer>
-            </CardDescription>
+            <CardTitle>Review Capture</CardTitle>
           </CardHeader>
 
           <CardContent className="space-y-6">
@@ -166,48 +163,14 @@ if (result.success) {
               </div>
             )}
 
-            {isLowConfidence && (
-              <Alert>
-                <Wand className="h-4 w-4" />
-                <AlertTitle>Low Confidence</AlertTitle>
-                <AlertDescription>
-                  The AI is not very confident. Please double-check the breed.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {/* Confidence */}
-            <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-              <span className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4" />
-                AI Confidence
-              </span>
-              <span className="font-bold">
-                {((confidence || 0) * 100).toFixed(0)}%
-              </span>
-            </div>
-
-            {/* Rarity */}
             <div className="flex justify-between items-center p-3 border rounded-lg">
               <span className="flex items-center gap-2">
-                <Gem className="h-4 w-4" />
+                <Sparkles className="h-4 w-4" />
                 Rarity
               </span>
-
-              <Badge
-                variant={
-                  finalRarity === 'Rare'
-                    ? 'destructive'
-                    : finalRarity === 'Uncommon'
-                    ? 'secondary'
-                    : 'default'
-                }
-              >
-                {finalRarity}
-              </Badge>
+              <Badge>{finalRarity}</Badge>
             </div>
 
-            {/* Breed (INPUT libre 🔥) */}
             <FormField
               control={form.control}
               name="breedName"
@@ -215,44 +178,35 @@ if (result.success) {
                 <FormItem>
                   <FormLabel>Breed</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., English Bulldog" {...field} />
+                    <Input {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            {/* Nickname */}
             <FormField
               control={form.control}
               name="name"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Nickname</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., Buddy" {...field} />
-                  </FormControl>
-                  <FormMessage />
+                  <Input {...field} />
                 </FormItem>
               )}
             />
 
-            {/* Notes */}
             <FormField
               control={form.control}
               name="notes"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Notes</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="e.g., Very friendly dog" {...field} />
-                  </FormControl>
-                  <FormMessage />
+                  <Textarea {...field} />
                 </FormItem>
               )}
             />
 
-            {/* Favorite */}
             <FormField
               control={form.control}
               name="favorite"
@@ -267,8 +221,8 @@ if (result.success) {
 
           <CardFooter>
             <Button className="w-full" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
-              Save to Collection
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Capture
             </Button>
           </CardFooter>
         </form>
