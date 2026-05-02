@@ -3,7 +3,8 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
-import { Star, Loader2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Star, Loader2, Gem } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { DogEntry } from '@/types';
 import Balancer from 'react-wrap-balancer';
@@ -14,6 +15,12 @@ import { toggleFavorite } from '@/app/actions';
 type DogCardProps = {
   entry: DogEntry;
 };
+
+function getRarityBadgeVariant(rarity: string) {
+  if (rarity === 'Rare') return 'destructive';
+  if (rarity === 'Uncommon') return 'secondary';
+  return 'default';
+}
 
 export default function DogCard({ entry }: DogCardProps) {
   const { user } = useAuth();
@@ -60,12 +67,22 @@ export default function DogCard({ entry }: DogCardProps) {
                 sizes="(max-width: 768px) 50vw, 33vw"
               />
 
+              <div className="absolute left-2 top-2">
+                <Badge
+                  variant={getRarityBadgeVariant(entry.rarity)}
+                  className="flex items-center gap-1 shadow-md backdrop-blur-sm"
+                >
+                  <Gem className="h-3 w-3" />
+                  {entry.rarity}
+                </Badge>
+              </div>
+
               <button
                 type="button"
                 onClick={handleToggleFavorite}
                 disabled={isUpdating}
                 aria-label={favorite ? 'Remove from favorites' : 'Add to favorites'}
-                className={`absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-sm transition ${
+                className={`absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-sm transition ${
                   favorite
                     ? 'bg-primary/90 text-primary-foreground'
                     : 'bg-background/70 text-foreground hover:bg-primary/80 hover:text-primary-foreground'
