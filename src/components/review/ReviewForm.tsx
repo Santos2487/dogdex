@@ -11,6 +11,7 @@ import { saveCapture } from '@/app/actions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 
 import { storage } from '@/lib/firebase';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
@@ -88,61 +89,98 @@ export default function ReviewForm() {
           rarity: finalRarity,
           meta: result.meta,
         });
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: result.error,
-        });
       }
-    } catch (e: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: e.message,
-      });
     } finally {
       setIsSubmitting(false);
     }
   }
 
+  // 🎮 REVEAL SCREEN
   if (revealData) {
     const { breed, rarity, meta } = revealData;
+    const isRare = rarity === 'Rare';
 
     return (
-      <div className="flex flex-col items-center justify-center text-center space-y-6 p-6">
-        <div className="text-4xl font-bold">
-          {meta?.isNewBreed ? '✨ New Breed!' : '📸 Captured!'}
-        </div>
+      <div className="flex items-center justify-center min-h-[70vh]">
+        {/* confetti simple */}
+        {isRare && (
+          <div className="absolute inset-0 pointer-events-none text-3xl animate-pulse">
+            🎉 🎉 🎉 🎉 🎉 🎉 🎉
+          </div>
+        )}
 
-        <div className="text-2xl font-semibold">{breed}</div>
-
-        <Badge
-          variant={
-            rarity === 'Rare'
-              ? 'destructive'
-              : rarity === 'Uncommon'
-              ? 'secondary'
-              : 'default'
-          }
+        <motion.div
+          initial={{ scale: 0.6, opacity: 0, rotate: -10 }}
+          animate={{ scale: 1, opacity: 1, rotate: 0 }}
+          transition={{ duration: 0.5, type: 'spring' }}
+          className={`flex flex-col items-center text-center space-y-6 p-8 rounded-xl border shadow-xl ${
+            isRare ? 'shadow-red-500/40' : 'shadow-primary/30'
+          }`}
         >
-          <Gem className="mr-1 h-4 w-4" />
-          {rarity}
-        </Badge>
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2 }}
+            className="text-4xl font-bold"
+          >
+            {meta?.isNewBreed ? '✨ New Breed!' : '📸 Captured!'}
+          </motion.div>
 
-        <div className="text-lg text-muted-foreground">
-          +{meta?.xpGained || 1} XP
-        </div>
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="text-2xl font-semibold"
+          >
+            {breed}
+          </motion.div>
 
-        <Button
-          size="lg"
-          onClick={() => {
-            clearCaptureData();
-            router.push('/collection');
-          }}
-        >
-          Continue
-        </Button>
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.4 }}
+          >
+            <Badge
+              variant={
+                rarity === 'Rare'
+                  ? 'destructive'
+                  : rarity === 'Uncommon'
+                  ? 'secondary'
+                  : 'default'
+              }
+              className="text-lg px-4 py-2"
+            >
+              <Gem className="mr-2 h-4 w-4" />
+              {rarity}
+            </Badge>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="text-lg text-muted-foreground"
+          >
+            +{meta?.xpGained || 1} XP
+          </motion.div>
+
+          <motion.div
+            initial={{ scale: 0.8 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.6 }}
+          >
+            <Button
+              size="lg"
+              onClick={() => {
+                clearCaptureData();
+                router.push('/collection');
+              }}
+              className="px-8 py-6 text-lg"
+            >
+              Continue
+            </Button>
+          </motion.div>
+        </motion.div>
       </div>
     );
   }
@@ -162,6 +200,7 @@ export default function ReviewForm() {
               </div>
             )}
 
+            {/* AI CONFIDENCE */}
             <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
               <span className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4" />
@@ -172,6 +211,7 @@ export default function ReviewForm() {
               </span>
             </div>
 
+            {/* RARITY */}
             <div className="flex justify-between items-center p-3 border rounded-lg">
               <span className="flex items-center gap-2">
                 <Gem className="h-4 w-4" />
@@ -189,7 +229,6 @@ export default function ReviewForm() {
                   <FormControl>
                     <Input {...field} />
                   </FormControl>
-                  <FormMessage />
                 </FormItem>
               )}
             />
