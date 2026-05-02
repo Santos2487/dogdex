@@ -37,13 +37,33 @@ function StatCard({ title, value, subtitle, icon: Icon }: any) {
   );
 }
 
+function RarityRow({ label, count, total }: { label: string; count: number; total: number }) {
+  const percent = total > 0 ? Math.round((count / total) * 100) : 0;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-sm">
+        <span className="font-medium">{label}</span>
+        <span className="text-muted-foreground">
+          {count} · {percent}%
+        </span>
+      </div>
+      <Progress value={percent} />
+    </div>
+  );
+}
+
 export default function StatsPage() {
   const { user, userData, loading } = useAuth();
   const [entries, setEntries] = useState<DogEntry[]>([]);
   const [entriesLoading, setEntriesLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setEntries([]);
+      setEntriesLoading(false);
+      return;
+    }
 
     const q = query(
       collection(db, 'users', user.uid, 'entries'),
@@ -73,11 +93,9 @@ export default function StatsPage() {
       breedCounts[e.breedName] = (breedCounts[e.breedName] || 0) + 1;
     });
 
-    const sortedBreeds = Object.entries(breedCounts).sort(
-      (a, b) => b[1] - a[1]
-    );
-
-    const topBreeds = sortedBreeds.slice(0, 3);
+    const topBreeds = Object.entries(breedCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3);
 
     const rare = entries.filter((e) => e.rarity === 'Rare').length;
     const uncommon = entries.filter((e) => e.rarity === 'Uncommon').length;
@@ -96,14 +114,22 @@ export default function StatsPage() {
 
   if (loading || entriesLoading || !userData) {
     return (
-      <div className="p-4 space-y-4">
+      <div className="container mx-auto max-w-3xl p-4 space-y-6">
         <Skeleton className="h-40 w-full" />
+        <div className="grid grid-cols-2 gap-4">
+          <Skeleton className="h-28 w-full" />
+          <Skeleton className="h-28 w-full" />
+        </div>
       </div>
     );
   }
 
   const { level, progress, requiredXpForNextLevel } = getLevelFromXp(userData.xp);
-  const progressPercent = Math.round((progress / requiredXpForNextLevel) * 100);
+  const progressPercent =
+    requiredXpForNextLevel > 0
+      ? Math.round((progress / requiredXpForNextLevel) * 100)
+      : 0;
+  const xpLeft = Math.max(requiredXpForNextLevel - progress, 0);
 
   return (
     <div className="container mx-auto max-w-3xl p-4 space-y-6">
@@ -112,78 +138,113 @@ export default function StatsPage() {
         <h1 className="text-3xl font-bold">My Stats</h1>
       </div>
 
-      {/* LEVEL */}
-      <Card>
+      <Card className="border-primary/40">
         <CardHeader>
           <CardTitle className="flex gap-2 items-center">
-            <Trophy className="h-5 w-5" />
-            Level {level}
+            <Trophy className="h-5 w-5 text-primary" />
+            Level {level} Explorer
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-4xl font-bold">{progressPercent}%</p>
+          <div className="flex justify-between items-end mb-3">
+            <div>
+              <p className="text-4xl font-bold">{progressPercent}%</p>
+              <p className="text-sm text-muted-foreground">
+                {xpLeft} XP left to reach Level {level + 1}
+              </p>
+            </div>
+            <p className="text-sm font-medium text-muted-foreground">
+              {progress} / {requiredXpForNextLevel} XP
+            </p>
+          </div>
+
           <Progress value={progressPercent} />
+
+          <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+            <span>Level {level}</span>
+            <span>{userData.xp} total XP</span>
+            <span>Level {level + 1}</span>
+          </div>
         </CardContent>
       </Card>
 
-      {/* MAIN STATS */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <StatCard
           title="Total Captures"
           value={stats.total}
+          subtitle={`${stats.total} entries currently saved`}
           icon={PawPrint}
         />
+
+        <StatCard
+          title="Unique Breeds"
+          value={userData.uniqueBreedsCount}
+          subtitle="Different breeds discovered"
+          icon={Sparkles}
+        />
+
         <StatCard
           title="Favorites"
           value={`${stats.favoritePercent}%`}
-          subtitle={`${stats.favorites} saved`}
+          subtitle={`${stats.favorites} of ${stats.total} captures`}
           icon={Heart}
+        />
+
+        <StatCard
+          title="Top Breed"
+          value={stats.topBreeds[0]?.[0] || 'None yet'}
+          subtitle={
+            stats.topBreeds[0]
+              ? `${stats.topBreeds[0][1]} capture${stats.topBreeds[0][1] === 1 ? '' : 's'}`
+              : 'No captures yet'
+          }
+          icon={Target}
         />
       </div>
 
-      {/* TOP BREEDS */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5" />
-            Top Breeds
+            <Target className="h-5 w-5 text-primary" />
+            Top 3 Breeds
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {stats.topBreeds.length === 0 && (
+          {stats.topBreeds.length === 0 ? (
             <p className="text-muted-foreground">No data yet</p>
-          )}
+          ) : (
+            stats.topBreeds.map(([breed, count], i) => {
+              const percent = stats.total > 0 ? Math.round((count / stats.total) * 100) : 0;
 
-          {stats.topBreeds.map(([breed, count], i) => {
-            const percent = Math.round((count / stats.total) * 100);
-
-            return (
-              <div key={breed} className="space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span>
-                    #{i + 1} {breed}
-                  </span>
-                  <span>{count}</span>
+              return (
+                <div key={breed} className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium">
+                      #{i + 1} {breed}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {count} · {percent}%
+                    </span>
+                  </div>
+                  <Progress value={percent} />
                 </div>
-                <Progress value={percent} />
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </CardContent>
       </Card>
 
-      {/* RARITY */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Gem className="h-5 w-5" />
+            <Gem className="h-5 w-5 text-primary" />
             Rarity Breakdown
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <Progress value={(stats.common / stats.total) * 100} />
-          <Progress value={(stats.uncommon / stats.total) * 100} />
-          <Progress value={(stats.rare / stats.total) * 100} />
+        <CardContent className="space-y-5">
+          <RarityRow label="Common" count={stats.common} total={stats.total} />
+          <RarityRow label="Uncommon" count={stats.uncommon} total={stats.total} />
+          <RarityRow label="Rare" count={stats.rare} total={stats.total} />
         </CardContent>
       </Card>
     </div>
