@@ -23,18 +23,27 @@ export async function saveCapture(
   data: ReviewFormData,
   photoUrl: string,
   confidence: number
-): Promise<{ success: boolean; error?: string }> {
-  if (!userId) {
-    return { success: false, error: 'User not authenticated.' };
-  }
-
-  if (!photoUrl) {
-    return { success: false, error: 'No photo URL provided.' };
-  }
+): Promise<{
+  success: boolean;
+  error?: string;
+  meta?: {
+    isNewBreed: boolean;
+    isRare: boolean;
+    xpGained: number;
+  };
+}> {
+  if (!userId) return { success: false, error: 'User not authenticated.' };
+  if (!photoUrl) return { success: false, error: 'No photo URL provided.' };
 
   const entryId = uuidv4();
 
   try {
+    let meta = {
+      isNewBreed: false,
+      isRare: false,
+      xpGained: 0,
+    };
+
     await runTransaction(db, async (transaction) => {
       const userRef = doc(db, 'users', userId);
       const userDoc = await transaction.get(userRef);
@@ -48,12 +57,21 @@ export async function saveCapture(
       const entriesRef = collection(db, 'users', userId, 'entries');
       const q = query(entriesRef, where('breedName', '==', data.breedName));
       const existingBreedDocs = await getDocs(q);
+
       const isNewBreed = existingBreedDocs.empty;
+      const isRare = data.rarity !== 'Common';
 
-      let newXp = userData.xp + 1;
-      if (isNewBreed) newXp += 2;
-      if (data.rarity === 'Rare') newXp += 1;
+      let xpGained = 1;
+      if (isNewBreed) xpGained += 2;
+      if (data.rarity === 'Rare') xpGained += 1;
 
+      meta = {
+        isNewBreed,
+        isRare,
+        xpGained,
+      };
+
+      const newXp = userData.xp + xpGained;
       const newTotalCaptures = userData.totalCaptures + 1;
       const newUniqueBreedsCount = isNewBreed
         ? userData.uniqueBreedsCount + 1
@@ -61,7 +79,9 @@ export async function saveCapture(
 
       const newLevel = getLevelFromXp(newXp).level;
 
-      transaction.set(doc(db, 'users', userId, 'entries', entryId), {
+      const entryRef = doc(db, 'users', userId, 'entries', entryId);
+
+      transaction.set(entryRef, {
         photoUrl,
         ...data,
         confidence,
@@ -72,6 +92,7 @@ export async function saveCapture(
 
       const achievementsRef = collection(db, 'users', userId, 'achievements');
       const achievementsSnapshot = await getDocs(query(achievementsRef));
+
       const achievements = achievementsSnapshot.docs.map((d) => ({
         id: d.id,
         ...d.data(),
@@ -130,7 +151,10 @@ export async function saveCapture(
     revalidatePath('/stats');
     revalidatePath('/badges');
 
-    return { success: true };
+    return {
+      success: true,
+      meta,
+    };
   } catch (e: any) {
     console.error('Failed to save capture:', e);
 
@@ -145,13 +169,8 @@ export async function deleteCapture(
   userId: string,
   entryId: string
 ): Promise<{ success: boolean; error?: string }> {
-  if (!userId) {
-    return { success: false, error: 'User not authenticated.' };
-  }
-
-  if (!entryId) {
-    return { success: false, error: 'Entry not found.' };
-  }
+  if (!userId) return { success: false, error: 'User not authenticated.' };
+  if (!entryId) return { success: false, error: 'Entry not found.' };
 
   try {
     const entryRef = doc(db, 'users', userId, 'entries', entryId);
@@ -192,13 +211,8 @@ export async function toggleFavorite(
   entryId: string,
   favorite: boolean
 ): Promise<{ success: boolean; error?: string }> {
-  if (!userId) {
-    return { success: false, error: 'User not authenticated.' };
-  }
-
-  if (!entryId) {
-    return { success: false, error: 'Entry not found.' };
-  }
+  if (!userId) return { success: false, error: 'User not authenticated.' };
+  if (!entryId) return { success: false, error: 'Entry not found.' };
 
   try {
     const entryRef = doc(db, 'users', userId, 'entries', entryId);

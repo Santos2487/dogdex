@@ -99,15 +99,36 @@ export default function ReviewForm() {
         confidence
       );
 
-      if (result.success) {
-        toast({
-          title: 'Saved!',
-          description: `${data.breedName} added to your collection.`,
-        });
+if (result.success) {
+  const meta = result.meta;
 
-        clearCaptureData();
-        router.push('/collection');
-      } else {
+  if (meta) {
+    if (meta.isNewBreed) {
+      toast({
+        title: '✨ New Breed Discovered!',
+        description: `${data.breedName} added to your DogDex (+${meta.xpGained} XP)`,
+      });
+    } else if (meta.isRare) {
+      toast({
+        title: '🔥 Rare Capture!',
+        description: `${data.breedName} is uncommon (+${meta.xpGained} XP)`,
+      });
+    } else {
+      toast({
+        title: '📸 Captured!',
+        description: `${data.breedName} saved (+${meta.xpGained} XP)`,
+      });
+    }
+  } else {
+    toast({
+      title: 'Saved!',
+      description: `${data.breedName} added to your collection.`,
+    });
+  }
+
+  clearCaptureData();
+  router.push('/collection');
+} else {
         toast({
           variant: 'destructive',
           title: 'Save Failed',
