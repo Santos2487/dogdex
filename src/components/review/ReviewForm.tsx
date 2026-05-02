@@ -17,21 +17,8 @@ import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { v4 as uuidv4 } from 'uuid';
 
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -83,10 +70,7 @@ export default function ReviewForm() {
 
     try {
       const entryId = uuidv4();
-      const storageRef = ref(
-        storage,
-        `users/${user.uid}/entries/${entryId}.jpg`
-      );
+      const storageRef = ref(storage, `users/${user.uid}/entries/${entryId}.jpg`);
 
       await uploadString(storageRef, photoDataUri, 'data_url');
       const photoUrl = await getDownloadURL(storageRef);
@@ -122,7 +106,6 @@ export default function ReviewForm() {
     }
   }
 
-  // 🎮 REVEAL
   if (revealData) {
     const { breed, rarity, meta } = revealData;
 
@@ -175,24 +158,28 @@ export default function ReviewForm() {
           <CardContent className="space-y-6">
             {photoDataUri && (
               <div className="relative aspect-video w-full overflow-hidden rounded-lg border">
-                <Image
-                  src={photoDataUri}
-                  alt="Dog"
-                  fill
-                  className="object-cover"
-                />
+                <Image src={photoDataUri} alt="Dog" fill className="object-cover" />
               </div>
             )}
 
-            <div className="flex justify-between items-center p-3 border rounded-lg">
+            <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
               <span className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4" />
+                AI Confidence
+              </span>
+              <span className="font-bold">
+                {((confidence || 0) * 100).toFixed(0)}%
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center p-3 border rounded-lg">
+              <span className="flex items-center gap-2">
+                <Gem className="h-4 w-4" />
                 Rarity
               </span>
               <Badge>{finalRarity}</Badge>
             </div>
 
-            {/* Breed (sin placeholder) */}
             <FormField
               control={form.control}
               name="breedName"
@@ -207,7 +194,6 @@ export default function ReviewForm() {
               )}
             />
 
-            {/* Nickname */}
             <FormField
               control={form.control}
               name="name"
@@ -221,7 +207,6 @@ export default function ReviewForm() {
               )}
             />
 
-            {/* Notes */}
             <FormField
               control={form.control}
               name="notes"
@@ -229,26 +214,19 @@ export default function ReviewForm() {
                 <FormItem>
                   <FormLabel>Notes</FormLabel>
                   <FormControl>
-                    <Textarea
-                      placeholder="e.g., Very friendly dog at the park"
-                      {...field}
-                    />
+                    <Textarea placeholder="e.g., Very friendly dog at the park" {...field} />
                   </FormControl>
                 </FormItem>
               )}
             />
 
-            {/* Favorite */}
             <FormField
               control={form.control}
               name="favorite"
               render={({ field }) => (
                 <FormItem className="flex justify-between items-center border p-4 rounded-lg">
                   <FormLabel>Favorite</FormLabel>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
+                  <Switch checked={field.value} onCheckedChange={field.onChange} />
                 </FormItem>
               )}
             />
@@ -256,9 +234,7 @@ export default function ReviewForm() {
 
           <CardFooter>
             <Button className="w-full" disabled={isSubmitting}>
-              {isSubmitting && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save Capture
             </Button>
           </CardFooter>
