@@ -63,6 +63,7 @@ export default function ReviewForm() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [revealData, setRevealData] = useState<any>(null);
+  const [isContinuing, setIsContinuing] = useState(false); // 👈 NUEVO
 
   const form = useForm<ReviewFormData>({
     resolver: zodResolver(reviewSchema),
@@ -141,15 +142,17 @@ export default function ReviewForm() {
             +{meta?.xpGained || 1} XP
           </div>
 
-          {/* 🔥 FIX NAVIGATION */}
-<Button
-  size="lg"
-  onClick={() => {
-    router.replace('/collection');
-  }}
->
-  Continue
-</Button>
+          {/* 👇 BOTÓN ARREGLADO */}
+          <Button
+            size="lg"
+            disabled={isContinuing}
+            onClick={() => {
+              setIsContinuing(true);
+              router.replace('/collection');
+            }}
+          >
+            {isContinuing ? 'Loading collection...' : 'Continue'}
+          </Button>
         </motion.div>
       </div>
     );
