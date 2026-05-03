@@ -9,7 +9,7 @@ import { Camera, FileImage, Loader2 } from 'lucide-react';
 
 export default function ImageUploader() {
   const router = useRouter();
-  const { setCaptureData } = useCaptureStore.getState();
+  const { setCaptureData, clearCaptureData } = useCaptureStore.getState();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -27,11 +27,17 @@ export default function ImageUploader() {
     setIsLoading(true);
 
     const reader = new FileReader();
+
     reader.onload = (e) => {
       const dataUri = e.target?.result as string;
+
+      clearCaptureData();
+
       setCaptureData({ photoDataUri: dataUri });
+
       router.push('/analyzing');
     };
+
     reader.onerror = () => {
       setIsLoading(false);
       toast({
@@ -40,6 +46,7 @@ export default function ImageUploader() {
         description: 'Failed to read the image file.',
       });
     };
+
     reader.readAsDataURL(file);
   };
 
@@ -49,7 +56,7 @@ export default function ImageUploader() {
       processFile(file);
     }
   };
-  
+
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
@@ -59,12 +66,14 @@ export default function ImageUploader() {
     input.type = 'file';
     input.accept = 'image/*';
     input.capture = 'environment';
+
     input.onchange = (event) => {
-        const file = (event.target as HTMLInputElement).files?.[0];
-        if (file) {
-            processFile(file);
-        }
+      const file = (event.target as HTMLInputElement).files?.[0];
+      if (file) {
+        processFile(file);
+      }
     };
+
     input.click();
   };
 
@@ -77,6 +86,7 @@ export default function ImageUploader() {
         onChange={handleFileChange}
         className="hidden"
       />
+
       {isLoading ? (
         <>
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -88,10 +98,17 @@ export default function ImageUploader() {
             <Button onClick={handleCameraClick} size="lg" className="w-full sm:w-auto">
               <Camera className="mr-2 h-5 w-5" /> Take Photo
             </Button>
-            <Button onClick={handleUploadClick} size="lg" variant="secondary" className="w-full sm:w-auto">
+
+            <Button
+              onClick={handleUploadClick}
+              size="lg"
+              variant="secondary"
+              className="w-full sm:w-auto"
+            >
               <FileImage className="mr-2 h-5 w-5" /> Upload File
             </Button>
           </div>
+
           <p className="mt-6 text-center text-sm text-muted-foreground">
             High-quality, well-lit photos work best!
           </p>
