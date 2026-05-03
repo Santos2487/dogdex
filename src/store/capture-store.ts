@@ -1,19 +1,21 @@
 import { create } from 'zustand';
 
+type Rarity = 'Common' | 'Uncommon' | 'Rare';
+
 type CaptureState = {
   photoDataUri: string | null;
   breedName: string | null;
   confidence: number | null;
-  rarity: 'Common' | 'Uncommon' | 'Rare' | null;
-  isMixed: boolean | null; // 👈 NUEVO
+  rarity: Rarity | null;
+  isMixed: boolean | null;
 
-  setCaptureData: (data: {
+  setCaptureData: (data: Partial<{
     photoDataUri: string;
     breedName: string;
     confidence: number;
-    rarity: 'Common' | 'Uncommon' | 'Rare';
+    rarity: Rarity;
     isMixed: boolean;
-  }) => void;
+  }>) => void;
 
   clearCaptureData: () => void;
 };
@@ -23,16 +25,13 @@ const useCaptureStore = create<CaptureState>((set) => ({
   breedName: null,
   confidence: null,
   rarity: null,
-  isMixed: null, // 👈 NUEVO
+  isMixed: null,
 
-  setCaptureData: ({ photoDataUri, breedName, confidence, rarity, isMixed }) =>
-    set({
-      photoDataUri,
-      breedName,
-      confidence,
-      rarity,
-      isMixed, // 👈 NUEVO
-    }),
+  setCaptureData: (data) =>
+    set((state) => ({
+      ...state,
+      ...data,
+    })),
 
   clearCaptureData: () =>
     set({
@@ -40,7 +39,7 @@ const useCaptureStore = create<CaptureState>((set) => ({
       breedName: null,
       confidence: null,
       rarity: null,
-      isMixed: null, // 👈 NUEVO
+      isMixed: null,
     }),
 }));
 
