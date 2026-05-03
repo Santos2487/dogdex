@@ -42,7 +42,9 @@ const IdentifyDogBreedOutputSchema = z.object({
   candidateBreeds: z
     .array(z.string())
     .default([])
-    .describe('Alternative possible breeds, especially useful for mixed or uncertain dogs.'),
+    .describe(
+      'Alternative possible breeds, especially useful for mixed or uncertain dogs.'
+    ),
 });
 
 export type IdentifyDogBreedOutput = z.infer<typeof IdentifyDogBreedOutputSchema>;
@@ -128,18 +130,39 @@ const identifyDogBreedFlow = ai.defineFlow(
     outputSchema: IdentifyDogBreedOutputSchema,
   },
   async (input) => {
-    const { output } = await identifyDogBreedPrompt(input);
+    try {
+      const { output } = await identifyDogBreedPrompt(input);
 
-    if (!output?.breedName) {
-      throw new Error('AI could not identify the dog breed.');
+      if (!output?.breedName) {
+        return {
+          breedName: 'Mixed Breed',
+          isMixed: true,
+          confidence: 0.45,
+          rarity: 'Uncommon',
+          candidateBreeds: [],
+        };
+      }
+
+      return {
+        breedName: output.breedName,
+        isMixed: output.isMixed ?? false,
+        confidence:
+          typeof output.confidence === 'number'
+            ? Math.min(Math.max(output.confidence, 0), 1)
+            : 0.5,
+        rarity: output.rarity ?? 'Uncommon',
+        candidateBreeds: output.candidateBreeds ?? [],
+      };
+    } catch (error) {
+      console.error('Dog breed AI fallback used:', error);
+
+      return {
+        breedName: 'Mixed Breed',
+        isMixed: true,
+        confidence: 0.45,
+        rarity: 'Uncommon',
+        candidateBreeds: [],
+      };
     }
-
-    return {
-      breedName: output.breedName,
-      isMixed: output.isMixed ?? false,
-      confidence: output.confidence,
-      rarity: output.rarity,
-      candidateBreeds: output.candidateBreeds ?? [],
-    };
   }
 );
