@@ -32,7 +32,6 @@ export default function AnalyzingPage() {
           confidence: result.confidence,
           rarity: result.rarity,
           isMixed: result.isMixed,
-          candidateBreeds: result.candidateBreeds,
         });
 
         router.push('/review');
@@ -51,6 +50,7 @@ export default function AnalyzingPage() {
     };
 
     const timer = setTimeout(analyzeImage, 1500);
+
     return () => clearTimeout(timer);
   }, [photoDataUri, router, toast, setCaptureData, clearCaptureData]);
 
