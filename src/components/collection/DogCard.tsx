@@ -48,6 +48,8 @@ export default function DogCard({ entry }: DogCardProps) {
     setIsUpdating(false);
   }
 
+  const displayBreed = `${entry.breedName}${entry.isMixed ? ' (Mix)' : ''}`;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -61,12 +63,13 @@ export default function DogCard({ entry }: DogCardProps) {
             <div className="relative aspect-square w-full">
               <Image
                 src={entry.photoUrl}
-                alt={entry.name || entry.breedName}
+                alt={entry.name || displayBreed}
                 fill
                 className="object-cover transition-transform duration-300 group-hover:scale-105"
                 sizes="(max-width: 768px) 50vw, 33vw"
               />
 
+              {/* RARITY BADGE */}
               <div className="absolute left-2 top-2">
                 <Badge
                   variant={getRarityBadgeVariant(entry.rarity)}
@@ -77,6 +80,7 @@ export default function DogCard({ entry }: DogCardProps) {
                 </Badge>
               </div>
 
+              {/* FAVORITE BUTTON */}
               <button
                 type="button"
                 onClick={handleToggleFavorite}
@@ -96,12 +100,16 @@ export default function DogCard({ entry }: DogCardProps) {
               </button>
             </div>
 
+            {/* TEXT */}
             <div className="p-4">
               <h3 className="font-bold truncate text-lg">
-                <Balancer>{entry.name || entry.breedName}</Balancer>
+                <Balancer>
+                  {entry.name || displayBreed}
+                </Balancer>
               </h3>
+
               <p className="text-sm text-muted-foreground truncate">
-                {entry.name ? entry.breedName : ' '}
+                {entry.name ? displayBreed : ' '}
               </p>
             </div>
           </CardContent>

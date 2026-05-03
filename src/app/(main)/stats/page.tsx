@@ -87,6 +87,8 @@ export default function StatsPage() {
     const total = entries.length;
     const favorites = entries.filter((e) => e.favorite).length;
 
+    const mixed = entries.filter((e) => e.isMixed).length;
+
     const breedCounts: Record<string, number> = {};
 
     entries.forEach((e) => {
@@ -105,6 +107,8 @@ export default function StatsPage() {
       total,
       favorites,
       favoritePercent: total ? Math.round((favorites / total) * 100) : 0,
+      mixed,
+      mixedPercent: total ? Math.round((mixed / total) * 100) : 0,
       topBreeds,
       rare,
       uncommon,
@@ -138,6 +142,7 @@ export default function StatsPage() {
         <h1 className="text-3xl font-bold">My Stats</h1>
       </div>
 
+      {/* LEVEL */}
       <Card className="border-primary/40">
         <CardHeader>
           <CardTitle className="flex gap-2 items-center">
@@ -168,6 +173,7 @@ export default function StatsPage() {
         </CardContent>
       </Card>
 
+      {/* MAIN STATS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <StatCard
           title="Total Captures"
@@ -191,17 +197,14 @@ export default function StatsPage() {
         />
 
         <StatCard
-          title="Top Breed"
-          value={stats.topBreeds[0]?.[0] || 'None yet'}
-          subtitle={
-            stats.topBreeds[0]
-              ? `${stats.topBreeds[0][1]} capture${stats.topBreeds[0][1] === 1 ? '' : 's'}`
-              : 'No captures yet'
-          }
-          icon={Target}
+          title="Mixed Captures"
+          value={`${stats.mixedPercent}%`}
+          subtitle={`${stats.mixed} of ${stats.total} captures`}
+          icon={Sparkles}
         />
       </div>
 
+      {/* TOP BREEDS */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -214,7 +217,10 @@ export default function StatsPage() {
             <p className="text-muted-foreground">No data yet</p>
           ) : (
             stats.topBreeds.map(([breed, count], i) => {
-              const percent = stats.total > 0 ? Math.round((count / stats.total) * 100) : 0;
+              const percent =
+                stats.total > 0
+                  ? Math.round((count / stats.total) * 100)
+                  : 0;
 
               return (
                 <div key={breed} className="space-y-2">
@@ -234,6 +240,7 @@ export default function StatsPage() {
         </CardContent>
       </Card>
 
+      {/* RARITY */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

@@ -16,7 +16,10 @@ import type { UserProfile, Achievement as AchievementData } from '@/types';
 import type { z } from 'zod';
 import type { reviewSchema } from '@/components/review/ReviewForm';
 
-type ReviewFormData = z.infer<typeof reviewSchema>;
+type ReviewFormData = z.infer<typeof reviewSchema> & {
+  rarity: 'Common' | 'Uncommon' | 'Rare';
+  isMixed?: boolean;
+};
 
 export async function saveCapture(
   userId: string,

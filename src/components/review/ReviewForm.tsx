@@ -19,7 +19,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -45,6 +45,7 @@ export default function ReviewForm() {
     breedName,
     confidence,
     rarity: aiRarity,
+    isMixed, // 👈 NUEVO
     clearCaptureData,
   } = useCaptureStore();
 
@@ -77,16 +78,17 @@ export default function ReviewForm() {
       const photoUrl = await getDownloadURL(storageRef);
 
       const result = await saveCapture(
-        user.uid,
-        { ...data, rarity: finalRarity },
-        photoUrl,
-        confidence
-      );
+  user.uid,
+  { ...data, rarity: finalRarity, isMixed: isMixed || false },
+  photoUrl,
+  confidence
+);
 
       if (result.success) {
         setRevealData({
           breed: data.breedName,
           rarity: finalRarity,
+          isMixed,
           meta: result.meta,
         });
       }
@@ -95,91 +97,44 @@ export default function ReviewForm() {
     }
   }
 
-  // 🎮 REVEAL SCREEN
+  // 🎮 REVEAL
   if (revealData) {
-    const { breed, rarity, meta } = revealData;
-    const isRare = rarity === 'Rare';
+    const { breed, rarity, meta, isMixed } = revealData;
 
     return (
       <div className="flex items-center justify-center min-h-[70vh]">
-        {/* confetti simple */}
-        {isRare && (
-          <div className="absolute inset-0 pointer-events-none text-3xl animate-pulse">
-            🎉 🎉 🎉 🎉 🎉 🎉 🎉
-          </div>
-        )}
-
         <motion.div
-          initial={{ scale: 0.6, opacity: 0, rotate: -10 }}
-          animate={{ scale: 1, opacity: 1, rotate: 0 }}
-          transition={{ duration: 0.5, type: 'spring' }}
-          className={`flex flex-col items-center text-center space-y-6 p-8 rounded-xl border shadow-xl ${
-            isRare ? 'shadow-red-500/40' : 'shadow-primary/30'
-          }`}
+          initial={{ scale: 0.6, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.5 }}
+          className="flex flex-col items-center text-center space-y-6 p-8 rounded-xl border shadow-xl"
         >
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2 }}
-            className="text-4xl font-bold"
-          >
+          <div className="text-4xl font-bold">
             {meta?.isNewBreed ? '✨ New Breed!' : '📸 Captured!'}
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className="text-2xl font-semibold"
-          >
-            {breed}
-          </motion.div>
+          <div className="text-2xl font-semibold">
+            {breed} {isMixed ? '(Mix)' : ''}
+          </div>
 
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.4 }}
-          >
-            <Badge
-              variant={
-                rarity === 'Rare'
-                  ? 'destructive'
-                  : rarity === 'Uncommon'
-                  ? 'secondary'
-                  : 'default'
-              }
-              className="text-lg px-4 py-2"
-            >
-              <Gem className="mr-2 h-4 w-4" />
-              {rarity}
-            </Badge>
-          </motion.div>
+          <Badge>
+            <Gem className="mr-2 h-4 w-4" />
+            {rarity}
+          </Badge>
 
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="text-lg text-muted-foreground"
-          >
+          <div className="text-lg text-muted-foreground">
             +{meta?.xpGained || 1} XP
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={{ scale: 0.8 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.6 }}
+          <Button
+            size="lg"
+            onClick={() => {
+              clearCaptureData();
+              router.push('/collection');
+            }}
           >
-            <Button
-              size="lg"
-              onClick={() => {
-                clearCaptureData();
-                router.push('/collection');
-              }}
-              className="px-8 py-6 text-lg"
-            >
-              Continue
-            </Button>
-          </motion.div>
+            Continue
+          </Button>
         </motion.div>
       </div>
     );
@@ -200,7 +155,6 @@ export default function ReviewForm() {
               </div>
             )}
 
-            {/* AI CONFIDENCE */}
             <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
               <span className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4" />
@@ -211,7 +165,6 @@ export default function ReviewForm() {
               </span>
             </div>
 
-            {/* RARITY */}
             <div className="flex justify-between items-center p-3 border rounded-lg">
               <span className="flex items-center gap-2">
                 <Gem className="h-4 w-4" />
@@ -239,9 +192,7 @@ export default function ReviewForm() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Nickname</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., Buddy" {...field} />
-                  </FormControl>
+                  <Input placeholder="e.g., Buddy" {...field} />
                 </FormItem>
               )}
             />
@@ -252,9 +203,7 @@ export default function ReviewForm() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Notes</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="e.g., Very friendly dog at the park" {...field} />
-                  </FormControl>
+                  <Textarea placeholder="e.g., Very friendly dog at the park" {...field} />
                 </FormItem>
               )}
             />
