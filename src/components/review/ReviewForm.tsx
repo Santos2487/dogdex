@@ -146,6 +146,10 @@ export default function ReviewForm() {
   size="lg"
   onClick={() => {
     router.replace('/collection');
+
+    setTimeout(() => {
+      clearCaptureData();
+    }, 500);
   }}
 >
   Continue
