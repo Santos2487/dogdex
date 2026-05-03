@@ -129,9 +129,11 @@ export default function ReviewForm() {
           <Button
             size="lg"
             onClick={() => {
-              clearCaptureData();
-              router.push('/collection');
-            }}
+  router.push('/collection');
+  setTimeout(() => {
+    clearCaptureData();
+  }, 300);
+}}
           >
             Continue
           </Button>
