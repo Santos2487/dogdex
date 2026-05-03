@@ -142,18 +142,14 @@ export default function ReviewForm() {
           </div>
 
           {/* 🔥 FIX NAVIGATION */}
-          <Button
-            size="lg"
-            onClick={() => {
-              router.push('/collection');
-
-              setTimeout(() => {
-                clearCaptureData();
-              }, 300);
-            }}
-          >
-            Continue
-          </Button>
+<Button
+  size="lg"
+  onClick={() => {
+    router.replace('/collection');
+  }}
+>
+  Continue
+</Button>
         </motion.div>
       </div>
     );

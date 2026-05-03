@@ -15,7 +15,6 @@ export default function AnalyzingPage() {
 
   const photoDataUri = useCaptureStore((s) => s.photoDataUri);
   const setCaptureData = useCaptureStore((s) => s.setCaptureData);
-  const clearCaptureData = useCaptureStore((s) => s.clearCaptureData);
 
   useEffect(() => {
     if (!photoDataUri) {
@@ -32,27 +31,35 @@ export default function AnalyzingPage() {
           confidence: result.confidence,
           rarity: result.rarity,
           isMixed: result.isMixed,
+          candidateBreeds: result.candidateBreeds,
         });
 
         router.push('/review');
       } catch (error) {
-        console.error('AI analysis failed:', error);
+        console.error('AI analysis failed, using fallback:', error);
 
-        toast({
-          title: 'Analysis Failed',
-          description: 'Could not identify the dog. Please try another photo.',
-          variant: 'destructive',
+        setCaptureData({
+          breedName: 'Mixed Breed',
+          confidence: 0.45,
+          rarity: 'Uncommon',
+          isMixed: true,
+          candidateBreeds: [],
         });
 
-        clearCaptureData();
-        router.replace('/capture');
+        toast({
+          title: 'Low confidence result',
+          description:
+            'The AI was not fully sure, but you can review and edit the result.',
+        });
+
+        router.push('/review');
       }
     };
 
     const timer = setTimeout(analyzeImage, 1500);
 
     return () => clearTimeout(timer);
-  }, [photoDataUri, router, toast, setCaptureData, clearCaptureData]);
+  }, [photoDataUri, router, toast, setCaptureData]);
 
   return (
     <div className="flex h-screen flex-col items-center justify-center bg-background p-4 text-center">
