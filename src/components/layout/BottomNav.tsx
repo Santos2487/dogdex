@@ -2,51 +2,72 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, BarChart3, Award, Settings, Camera } from 'lucide-react';
-import { cn } from '@/lib/utils';
-
-const navItems = [
-  { href: '/collection', icon: Home, label: 'Collection' },
-  { href: '/stats', icon: BarChart3, label: 'Stats' },
-  null, // Placeholder for Capture button
-  { href: '/badges', icon: Award, label: 'Badges' },
-  { href: '/settings', icon: Settings, label: 'Settings' },
-];
+import { Home, BarChart2, Camera, Award, Settings } from 'lucide-react';
+import useLanguageStore from '@/store/language-store';
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const { language } = useLanguageStore();
+
+  const navItems = [
+    {
+      href: '/collection',
+      label: language === 'es' ? 'Colección' : 'Collection',
+      icon: Home,
+    },
+    {
+      href: '/stats',
+      label: language === 'es' ? 'Estadísticas' : 'Stats',
+      icon: BarChart2,
+    },
+    {
+      href: '/capture',
+      label: '',
+      icon: Camera,
+      isCenter: true,
+    },
+    {
+      href: '/badges',
+      label: language === 'es' ? 'Logros' : 'Badges',
+      icon: Award,
+    },
+    {
+      href: '/settings',
+      label: language === 'es' ? 'Ajustes' : 'Settings',
+      icon: Settings,
+    },
+  ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 h-20 border-t bg-background/95 backdrop-blur-sm">
-      <div className="mx-auto grid h-full max-w-lg grid-cols-5 items-center">
-        {navItems.map((item, index) => {
-          if (item === null) {
-            // Central FAB-style button for Capture
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur">
+      <div className="mx-auto flex max-w-lg items-center justify-around py-2">
+        {navItems.map((item) => {
+          const isActive = pathname === item.href;
+
+          if (item.isCenter) {
             return (
-              <div key="capture-button" className="relative flex justify-center">
-                <Link
-                  href="/capture"
-                  className="absolute -top-10 flex h-20 w-20 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105"
-                  aria-label="Capture a new dog"
-                >
-                  <Camera className="h-9 w-9" />
-                </Link>
-              </div>
+              <Link key={item.href} href={item.href}>
+                <div className="flex flex-col items-center justify-center">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg">
+                    <item.icon className="h-6 w-6" />
+                  </div>
+                </div>
+              </Link>
             );
           }
-          
-          const isActive = pathname === item.href;
+
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'flex flex-col items-center justify-center gap-1 p-2 text-muted-foreground transition-colors hover:text-primary',
-                isActive && 'text-primary'
-              )}
-            >
-              <item.icon className="h-6 w-6" />
-              <span className="text-xs font-medium">{item.label}</span>
+            <Link key={item.href} href={item.href}>
+              <div
+                className={`flex flex-col items-center justify-center text-xs ${
+                  isActive
+                    ? 'text-primary'
+                    : 'text-muted-foreground hover:text-primary'
+                }`}
+              >
+                <item.icon className="h-5 w-5 mb-1" />
+                {item.label}
+              </div>
             </Link>
           );
         })}
