@@ -12,6 +12,7 @@ import Balancer from 'react-wrap-balancer';
 import { Button } from '../ui/button';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
+import useLanguageStore from '@/store/language-store';
 
 type FilterMode = 'all' | 'favorites';
 type RarityFilter = 'All' | 'Common' | 'Uncommon' | 'Rare';
@@ -32,11 +33,43 @@ function CollectionSkeleton() {
 
 export default function CollectionGrid() {
   const { user } = useAuth();
+  const { language } = useLanguageStore();
+
   const [entries, setEntries] = useState<DogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterMode>('all');
   const [search, setSearch] = useState('');
   const [rarityFilter, setRarityFilter] = useState<RarityFilter>('All');
+
+  const t = {
+    searchPlaceholder:
+      language === 'es'
+        ? 'Buscar por raza o apodo...'
+        : 'Search by breed or nickname...',
+    all: language === 'es' ? 'Todo' : 'All',
+    favorites: language === 'es' ? 'Favoritos' : 'Favorites',
+    emptyTitle:
+      language === 'es'
+        ? 'Tu colección está vacía'
+        : 'Your Collection is Empty',
+    emptyDescription:
+      language === 'es'
+        ? 'Pulsa el botón de captura para empezar a identificar y coleccionar razas de perro.'
+        : "Tap the 'Capture' button below to start identifying and collecting dog breeds!",
+    startCapturing:
+      language === 'es' ? 'Empezar a capturar' : 'Start Capturing',
+    noDogsFound: language === 'es' ? 'No se encontraron perros' : 'No dogs found',
+    tryChanging:
+      language === 'es'
+        ? 'Prueba a cambiar el texto de búsqueda o los filtros.'
+        : 'Try changing the search text or filters.',
+    rarity: {
+      All: language === 'es' ? 'Todas' : 'All',
+      Common: language === 'es' ? 'Común' : 'Common',
+      Uncommon: language === 'es' ? 'Poco común' : 'Uncommon',
+      Rare: language === 'es' ? 'Raro' : 'Rare',
+    },
+  };
 
   useEffect(() => {
     if (user) {
@@ -103,15 +136,13 @@ export default function CollectionGrid() {
       <div className="flex flex-col items-center justify-center text-center py-20 rounded-lg bg-secondary/50">
         <PawPrint className="w-16 h-16 text-muted-foreground mb-4" />
         <h2 className="text-2xl font-bold mb-2">
-          <Balancer>Your Collection is Empty</Balancer>
+          <Balancer>{t.emptyTitle}</Balancer>
         </h2>
         <p className="text-muted-foreground max-w-sm mb-6">
-          <Balancer>
-            Tap the 'Capture' button below to start identifying and collecting dog breeds!
-          </Balancer>
+          <Balancer>{t.emptyDescription}</Balancer>
         </p>
         <Button asChild size="lg">
-          <Link href="/capture">Start Capturing</Link>
+          <Link href="/capture">{t.startCapturing}</Link>
         </Button>
       </div>
     );
@@ -124,7 +155,7 @@ export default function CollectionGrid() {
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by breed or nickname..."
+          placeholder={t.searchPlaceholder}
           className="pl-9"
         />
       </div>
@@ -136,7 +167,7 @@ export default function CollectionGrid() {
           size="sm"
           onClick={() => setFilter('all')}
         >
-          All
+          {t.all}
           <span className="ml-2 rounded-full bg-background/20 px-2 text-xs">
             {entries.length}
           </span>
@@ -149,7 +180,7 @@ export default function CollectionGrid() {
           onClick={() => setFilter('favorites')}
         >
           <Star className="mr-2 h-4 w-4" />
-          Favorites
+          {t.favorites}
           <span className="ml-2 rounded-full bg-background/20 px-2 text-xs">
             {favoriteEntries.length}
           </span>
@@ -163,7 +194,7 @@ export default function CollectionGrid() {
             size="sm"
             onClick={() => setRarityFilter(rarity)}
           >
-            {rarity}
+            {t.rarity[rarity]}
           </Button>
         ))}
       </div>
@@ -171,10 +202,8 @@ export default function CollectionGrid() {
       {visibleEntries.length === 0 ? (
         <div className="flex flex-col items-center justify-center text-center py-16 rounded-lg bg-secondary/50">
           <Search className="w-12 h-12 text-muted-foreground mb-4" />
-          <h2 className="text-xl font-bold mb-2">No dogs found</h2>
-          <p className="text-muted-foreground max-w-sm">
-            Try changing the search text or filters.
-          </p>
+          <h2 className="text-xl font-bold mb-2">{t.noDogsFound}</h2>
+          <p className="text-muted-foreground max-w-sm">{t.tryChanging}</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
