@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import useLanguageStore from '@/store/language-store';
 
 import { storage } from '@/lib/firebase';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
@@ -51,6 +52,7 @@ export default function ReviewForm() {
   const router = useRouter();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { language } = useLanguageStore();
 
   const {
     photoDataUri,
@@ -58,12 +60,40 @@ export default function ReviewForm() {
     confidence,
     rarity: aiRarity,
     isMixed,
-    clearCaptureData,
   } = useCaptureStore();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [revealData, setRevealData] = useState<any>(null);
-  const [isContinuing, setIsContinuing] = useState(false); // 👈 NUEVO
+  const [isContinuing, setIsContinuing] = useState(false);
+
+  const t = {
+    reviewCapture: language === 'es' ? 'Revisar captura' : 'Review Capture',
+    aiConfidence: language === 'es' ? 'Confianza IA' : 'AI Confidence',
+    rarity: language === 'es' ? 'Rareza' : 'Rarity',
+    breed: language === 'es' ? 'Raza' : 'Breed',
+    nickname: language === 'es' ? 'Apodo' : 'Nickname',
+    notes: language === 'es' ? 'Notas' : 'Notes',
+    favorite: language === 'es' ? 'Favorito' : 'Favorite',
+    save: language === 'es' ? 'Guardar captura' : 'Save Capture',
+    continue: language === 'es' ? 'Continuar' : 'Continue',
+    loading: language === 'es' ? 'Cargando colección...' : 'Loading collection...',
+    newBreed: language === 'es' ? '✨ ¡Nueva raza!' : '✨ New Breed!',
+    captured: language === 'es' ? '📸 ¡Capturado!' : '📸 Captured!',
+    nicknamePlaceholder: language === 'es' ? 'Ej: Buddy' : 'e.g., Buddy',
+    notesPlaceholder:
+      language === 'es'
+        ? 'Ej: Muy amigable en el parque'
+        : 'e.g., Very friendly dog at the park',
+    common: language === 'es' ? 'Común' : 'Common',
+    uncommon: language === 'es' ? 'Poco común' : 'Uncommon',
+    rare: language === 'es' ? 'Raro' : 'Rare',
+  };
+
+  const getRarityLabel = (rarity: string) => {
+    if (rarity === 'Common') return t.common;
+    if (rarity === 'Uncommon') return t.uncommon;
+    return t.rare;
+  };
 
   const form = useForm<ReviewFormData>({
     resolver: zodResolver(reviewSchema),
@@ -107,13 +137,24 @@ export default function ReviewForm() {
           isMixed,
           meta: result.meta,
         });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: result.error,
+        });
       }
+    } catch (e: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: e?.message || 'Upload failed.',
+      });
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  // 🎮 REVEAL SCREEN
   if (revealData) {
     const { breed, rarity, meta, isMixed } = revealData;
 
@@ -126,7 +167,7 @@ export default function ReviewForm() {
           className="flex flex-col items-center text-center space-y-6 p-8 rounded-xl border shadow-xl"
         >
           <div className="text-4xl font-bold">
-            {meta?.isNewBreed ? '✨ New Breed!' : '📸 Captured!'}
+            {meta?.isNewBreed ? t.newBreed : t.captured}
           </div>
 
           <div className="text-2xl font-semibold">
@@ -135,14 +176,13 @@ export default function ReviewForm() {
 
           <Badge>
             <Gem className="mr-2 h-4 w-4" />
-            {rarity}
+            {getRarityLabel(rarity)}
           </Badge>
 
           <div className="text-lg text-muted-foreground">
             +{meta?.xpGained || 1} XP
           </div>
 
-          {/* 👇 BOTÓN ARREGLADO */}
           <Button
             size="lg"
             disabled={isContinuing}
@@ -151,7 +191,7 @@ export default function ReviewForm() {
               router.replace('/collection');
             }}
           >
-            {isContinuing ? 'Loading collection...' : 'Continue'}
+            {isContinuing ? t.loading : t.continue}
           </Button>
         </motion.div>
       </div>
@@ -163,7 +203,7 @@ export default function ReviewForm() {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <CardHeader>
-            <CardTitle>Review Capture</CardTitle>
+            <CardTitle>{t.reviewCapture}</CardTitle>
           </CardHeader>
 
           <CardContent className="space-y-6">
@@ -181,7 +221,7 @@ export default function ReviewForm() {
             <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
               <span className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4" />
-                AI Confidence
+                {t.aiConfidence}
               </span>
               <span className="font-bold">
                 {((confidence || 0) * 100).toFixed(0)}%
@@ -191,9 +231,9 @@ export default function ReviewForm() {
             <div className="flex justify-between items-center p-3 border rounded-lg">
               <span className="flex items-center gap-2">
                 <Gem className="h-4 w-4" />
-                Rarity
+                {t.rarity}
               </span>
-              <Badge>{finalRarity}</Badge>
+              <Badge>{getRarityLabel(finalRarity)}</Badge>
             </div>
 
             <FormField
@@ -201,7 +241,7 @@ export default function ReviewForm() {
               name="breedName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Breed</FormLabel>
+                  <FormLabel>{t.breed}</FormLabel>
                   <FormControl>
                     <Input {...field} />
                   </FormControl>
@@ -214,8 +254,8 @@ export default function ReviewForm() {
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nickname</FormLabel>
-                  <Input placeholder="e.g., Buddy" {...field} />
+                  <FormLabel>{t.nickname}</FormLabel>
+                  <Input placeholder={t.nicknamePlaceholder} {...field} />
                 </FormItem>
               )}
             />
@@ -225,11 +265,8 @@ export default function ReviewForm() {
               name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Notes</FormLabel>
-                  <Textarea
-                    placeholder="e.g., Very friendly dog at the park"
-                    {...field}
-                  />
+                  <FormLabel>{t.notes}</FormLabel>
+                  <Textarea placeholder={t.notesPlaceholder} {...field} />
                 </FormItem>
               )}
             />
@@ -239,7 +276,7 @@ export default function ReviewForm() {
               name="favorite"
               render={({ field }) => (
                 <FormItem className="flex justify-between items-center border p-4 rounded-lg">
-                  <FormLabel>Favorite</FormLabel>
+                  <FormLabel>{t.favorite}</FormLabel>
                   <Switch
                     checked={field.value}
                     onCheckedChange={field.onChange}
@@ -254,7 +291,7 @@ export default function ReviewForm() {
               {isSubmitting && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Save Capture
+              {t.save}
             </Button>
           </CardFooter>
         </form>
