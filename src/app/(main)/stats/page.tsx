@@ -19,6 +19,7 @@ import Balancer from 'react-wrap-balancer';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import type { DogEntry } from '@/types';
+import useLanguageStore from '@/store/language-store';
 
 function StatCard({ title, value, subtitle, icon: Icon }: any) {
   return (
@@ -55,8 +56,31 @@ function RarityRow({ label, count, total }: { label: string; count: number; tota
 
 export default function StatsPage() {
   const { user, userData, loading } = useAuth();
+  const { language } = useLanguageStore();
+
   const [entries, setEntries] = useState<DogEntry[]>([]);
   const [entriesLoading, setEntriesLoading] = useState(true);
+
+  const t = {
+    title: language === 'es' ? 'Mis estadísticas' : 'My Stats',
+    level: language === 'es' ? 'Nivel' : 'Level',
+    explorer: language === 'es' ? 'Explorador' : 'Explorer',
+    xpLeft: language === 'es' ? 'XP para llegar al nivel' : 'XP left to reach Level',
+    totalXp: language === 'es' ? 'XP total' : 'total XP',
+    totalCaptures: language === 'es' ? 'Capturas totales' : 'Total Captures',
+    entriesSaved: language === 'es' ? 'entradas guardadas actualmente' : 'entries currently saved',
+    uniqueBreeds: language === 'es' ? 'Razas únicas' : 'Unique Breeds',
+    differentBreeds: language === 'es' ? 'Razas diferentes descubiertas' : 'Different breeds discovered',
+    favorites: language === 'es' ? 'Favoritos' : 'Favorites',
+    captures: language === 'es' ? 'capturas' : 'captures',
+    mixedCaptures: language === 'es' ? 'Capturas mixtas' : 'Mixed Captures',
+    topBreeds: language === 'es' ? 'Top 3 razas' : 'Top 3 Breeds',
+    noDataYet: language === 'es' ? 'Aún no hay datos' : 'No data yet',
+    rarityBreakdown: language === 'es' ? 'Desglose de rareza' : 'Rarity Breakdown',
+    common: language === 'es' ? 'Común' : 'Common',
+    uncommon: language === 'es' ? 'Poco común' : 'Uncommon',
+    rare: language === 'es' ? 'Raro' : 'Rare',
+  };
 
   useEffect(() => {
     if (!user) {
@@ -86,7 +110,6 @@ export default function StatsPage() {
   const stats = useMemo(() => {
     const total = entries.length;
     const favorites = entries.filter((e) => e.favorite).length;
-
     const mixed = entries.filter((e) => e.isMixed).length;
 
     const breedCounts: Record<string, number> = {};
@@ -139,15 +162,14 @@ export default function StatsPage() {
     <div className="container mx-auto max-w-3xl p-4 space-y-6">
       <div className="flex items-center gap-2">
         <BarChart3 className="h-8 w-8 text-primary" />
-        <h1 className="text-3xl font-bold">My Stats</h1>
+        <h1 className="text-3xl font-bold">{t.title}</h1>
       </div>
 
-      {/* LEVEL */}
       <Card className="border-primary/40">
         <CardHeader>
           <CardTitle className="flex gap-2 items-center">
             <Trophy className="h-5 w-5 text-primary" />
-            Level {level} Explorer
+            {t.level} {level} {t.explorer}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -155,7 +177,7 @@ export default function StatsPage() {
             <div>
               <p className="text-4xl font-bold">{progressPercent}%</p>
               <p className="text-sm text-muted-foreground">
-                {xpLeft} XP left to reach Level {level + 1}
+                {xpLeft} {t.xpLeft} {level + 1}
               </p>
             </div>
             <p className="text-sm font-medium text-muted-foreground">
@@ -166,55 +188,53 @@ export default function StatsPage() {
           <Progress value={progressPercent} />
 
           <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-            <span>Level {level}</span>
-            <span>{userData.xp} total XP</span>
-            <span>Level {level + 1}</span>
+            <span>{t.level} {level}</span>
+            <span>{userData.xp} {t.totalXp}</span>
+            <span>{t.level} {level + 1}</span>
           </div>
         </CardContent>
       </Card>
 
-      {/* MAIN STATS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <StatCard
-          title="Total Captures"
+          title={t.totalCaptures}
           value={stats.total}
-          subtitle={`${stats.total} entries currently saved`}
+          subtitle={`${stats.total} ${t.entriesSaved}`}
           icon={PawPrint}
         />
 
         <StatCard
-          title="Unique Breeds"
+          title={t.uniqueBreeds}
           value={userData.uniqueBreedsCount}
-          subtitle="Different breeds discovered"
+          subtitle={t.differentBreeds}
           icon={Sparkles}
         />
 
         <StatCard
-          title="Favorites"
+          title={t.favorites}
           value={`${stats.favoritePercent}%`}
-          subtitle={`${stats.favorites} of ${stats.total} captures`}
+          subtitle={`${stats.favorites} of ${stats.total} ${t.captures}`}
           icon={Heart}
         />
 
         <StatCard
-          title="Mixed Captures"
+          title={t.mixedCaptures}
           value={`${stats.mixedPercent}%`}
-          subtitle={`${stats.mixed} of ${stats.total} captures`}
+          subtitle={`${stats.mixed} of ${stats.total} ${t.captures}`}
           icon={Sparkles}
         />
       </div>
 
-      {/* TOP BREEDS */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Target className="h-5 w-5 text-primary" />
-            Top 3 Breeds
+            {t.topBreeds}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {stats.topBreeds.length === 0 ? (
-            <p className="text-muted-foreground">No data yet</p>
+            <p className="text-muted-foreground">{t.noDataYet}</p>
           ) : (
             stats.topBreeds.map(([breed, count], i) => {
               const percent =
@@ -240,18 +260,17 @@ export default function StatsPage() {
         </CardContent>
       </Card>
 
-      {/* RARITY */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Gem className="h-5 w-5 text-primary" />
-            Rarity Breakdown
+            {t.rarityBreakdown}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
-          <RarityRow label="Common" count={stats.common} total={stats.total} />
-          <RarityRow label="Uncommon" count={stats.uncommon} total={stats.total} />
-          <RarityRow label="Rare" count={stats.rare} total={stats.total} />
+          <RarityRow label={t.common} count={stats.common} total={stats.total} />
+          <RarityRow label={t.uncommon} count={stats.uncommon} total={stats.total} />
+          <RarityRow label={t.rare} count={stats.rare} total={stats.total} />
         </CardContent>
       </Card>
     </div>
