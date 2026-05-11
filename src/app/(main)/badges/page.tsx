@@ -1,193 +1,149 @@
 'use client';
 
-import { useAuth } from '@/contexts/AuthContext';
-import { db } from '@/lib/firebase';
-import { initialAchievements } from '@/lib/data';
-import {
-  collection,
-  onSnapshot,
-  orderBy,
-  query,
-} from 'firebase/firestore';
-import { useEffect, useMemo, useState } from 'react';
+import { Award } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { initialAchievements } from "@/lib/data";
+import { useAuth } from "@/contexts/AuthContext";
+import { db } from "@/lib/firebase";
+import { collection, onSnapshot, query } from "firebase/firestore";
+import { useEffect, useState } from "react";
+import type { Achievement as AchievementData } from "@/types";
+import { cn } from "@/lib/utils";
+import { Progress } from "@/components/ui/progress";
+import Balancer from "react-wrap-balancer";
+import { Skeleton } from "@/components/ui/skeleton";
+import useLanguageStore from "@/store/language-store";
 
-import {
-  Award,
-  PawPrint,
-  Lock,
-  CheckCircle2,
-} from 'lucide-react';
-
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-
-import { Progress } from '@/components/ui/progress';
-import { Skeleton } from '@/components/ui/skeleton';
-
-import useLanguageStore from '@/store/language-store';
-
-type UserAchievement = {
-  id: string;
-  currentCount: number;
-  unlocked: boolean;
+type LocalizedText = {
+  en: string;
+  es: string;
 };
 
-function AchievementSkeleton() {
+type AchievementWithIcon = Omit<AchievementData, 'title' | 'description'> & {
+  title: string | LocalizedText;
+  description: string | LocalizedText;
+  icon: React.ElementType;
+};
+
+function BadgeSkeleton() {
   return (
-    <div className="grid gap-4">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <Skeleton key={i} className="h-40 w-full" />
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div
+          key={i}
+          className="flex flex-col items-center justify-center p-6 text-center rounded-lg bg-secondary/30 h-48"
+        >
+          <Skeleton className="h-16 w-16 rounded-full mb-4" />
+          <Skeleton className="h-5 w-3/4 mb-2" />
+          <Skeleton className="h-4 w-full" />
+        </div>
       ))}
     </div>
   );
+}
+
+function getText(value: string | LocalizedText, language: 'en' | 'es') {
+  return typeof value === 'string' ? value : value[language];
 }
 
 export default function BadgesPage() {
   const { user } = useAuth();
   const { language } = useLanguageStore();
 
+  const [achievements, setAchievements] = useState<AchievementWithIcon[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [userAchievements, setUserAchievements] = useState<
-    UserAchievement[]
-  >([]);
-
   useEffect(() => {
-    if (!user) {
+    if (user) {
+      const q = query(collection(db, 'users', user.uid, 'achievements'));
+
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const fetchedAchievements = snapshot.docs.map((doc) => {
+          const data = doc.data() as AchievementData;
+          const baseAchievement = initialAchievements.find(
+            (ach) => ach.id === doc.id
+          );
+
+          return {
+            ...data,
+            id: doc.id,
+            title: baseAchievement?.title || data.title,
+            description: baseAchievement?.description || data.description,
+            icon: baseAchievement?.icon || Award,
+          };
+        });
+
+        setAchievements(fetchedAchievements);
+        setLoading(false);
+      });
+
+      return () => unsubscribe();
+    } else {
       setLoading(false);
-      return;
     }
-
-    const q = query(
-      collection(db, 'users', user.uid, 'achievements'),
-      orderBy('id')
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const achievements = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as UserAchievement[];
-
-      setUserAchievements(achievements);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
   }, [user]);
 
-  const achievements = useMemo(() => {
-    return initialAchievements.map((baseAchievement) => {
-      const userAchievement = userAchievements.find(
-        (a) => a.id === baseAchievement.id
-      );
-
-      return {
-        ...baseAchievement,
-        currentCount: userAchievement?.currentCount || 0,
-        unlocked: userAchievement?.unlocked || false,
-      };
-    });
-  }, [userAchievements]);
-
-  if (loading) {
-    return (
-      <div className="container mx-auto max-w-3xl p-4 space-y-6">
-        <Skeleton className="h-12 w-40" />
-        <AchievementSkeleton />
-      </div>
-    );
-  }
-
   return (
-    <div className="container mx-auto max-w-3xl p-4 space-y-6">
-      {/* HEADER */}
-      <div className="flex items-center gap-2">
+    <div className="container mx-auto max-w-3xl p-4">
+      <div className="flex items-center gap-2 mb-8">
         <Award className="h-8 w-8 text-primary" />
-
-        <h1 className="text-3xl font-bold">
-          {language === 'es' ? 'Logros' : 'Badges'}
+        <h1 className="text-3xl font-bold text-foreground">
+          {language === 'es' ? 'Logros' : 'Achievements'}
         </h1>
       </div>
 
-      {/* ACHIEVEMENTS */}
-      <div className="grid gap-4">
-        {achievements.map((achievement) => {
-          const progressPercent = Math.min(
-            (achievement.currentCount / achievement.requiredCount) * 100,
-            100
-          );
-
-          const Icon =
-            PawPrint;
-
-          return (
-            <Card
-              key={achievement.id}
-              className={`transition-all ${
-                achievement.unlocked
-                  ? 'border-primary/40 shadow-primary/10'
-                  : 'opacity-80'
-              }`}
-            >
-              <CardHeader className="flex flex-row items-start justify-between space-y-0">
-                <div className="space-y-1">
-                  <CardTitle className="text-lg">
-                    {typeof achievement.name === 'string'
-                      ? achievement.name
-                      : achievement.name[language]}
-                  </CardTitle>
-
-                  <p className="text-sm text-muted-foreground">
-                    {typeof achievement.description === 'string'
-                      ? achievement.description
-                      : achievement.description[language]}
-                  </p>
-                </div>
-
-                <div>
-                  {achievement.unlocked ? (
-                    <CheckCircle2 className="h-6 w-6 text-primary" />
-                  ) : (
-                    <Lock className="h-6 w-6 text-muted-foreground" />
+      {loading ? (
+        <BadgeSkeleton />
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {achievements
+            .sort((a, b) =>
+              a.unlocked === b.unlocked ? 0 : a.unlocked ? -1 : 1
+            )
+            .map((ach) => (
+              <Card
+                key={ach.id}
+                className={cn(
+                  "flex flex-col items-center justify-start p-6 text-center transition-all duration-300",
+                  ach.unlocked
+                    ? 'bg-secondary/80 border-primary/50'
+                    : 'bg-secondary/30 opacity-60'
+                )}
+              >
+                <div
+                  className={cn(
+                    "mb-4 flex h-16 w-16 items-center justify-center rounded-full text-foreground",
+                    ach.unlocked
+                      ? 'bg-primary/80 text-primary-foreground'
+                      : 'bg-muted text-muted-foreground'
                   )}
-                </div>
-              </CardHeader>
-
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span>
-                    {achievement.currentCount}/
-                    {achievement.requiredCount}
-                  </span>
-
-                  <span className="text-muted-foreground">
-                    {Math.round(progressPercent)}%
-                  </span>
+                >
+                  <ach.icon className="h-8 w-8" />
                 </div>
 
-                <Progress value={progressPercent} />
+                <h3 className="font-bold">
+                  <Balancer>{getText(ach.title, language)}</Balancer>
+                </h3>
 
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Icon className="h-4 w-4" />
+                <p className="text-sm text-muted-foreground flex-grow mb-4">
+                  <Balancer>{getText(ach.description, language)}</Balancer>
+                </p>
 
-                  {achievement.unlocked
-                    ? language === 'es'
-                      ? 'Desbloqueado'
-                      : 'Unlocked'
-                    : language === 'es'
-                    ? 'Bloqueado'
-                    : 'Locked'}
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+                {!ach.unlocked && (
+                  <div className="w-full">
+                    <Progress
+                      value={(ach.progress / ach.target) * 100}
+                      className="h-2"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {ach.progress} / {ach.target}
+                    </p>
+                  </div>
+                )}
+              </Card>
+            ))}
+        </div>
+      )}
     </div>
   );
 }
