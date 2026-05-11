@@ -63,54 +63,107 @@ export type InitialAchievement = Omit<
   icon: React.ElementType;
 };
 
-export const initialAchievements: InitialAchievement[] = [
+export const initialAchievements = [
   {
-    id: 'first-capture',
-    title: 'First Capture!',
-    description: 'You\'ve collected your first dog.',
-    target: 1,
-    metric: 'totalCaptures',
-    icon: Bone,
+    id: 'first_capture',
+
+    name: {
+      en: 'First Capture',
+      es: 'Primera captura',
+    },
+
+    description: {
+      en: 'Capture your first dog',
+      es: 'Captura tu primer perro',
+    },
+
+    icon: 'PawPrint',
+    requiredCount: 1,
   },
+
   {
-    id: 'five-unique',
-    title: 'Pack Starter',
-    description: 'Collect 5 unique dog breeds.',
-    target: 5,
-    metric: 'uniqueBreedsCount',
-    icon: Target,
+    id: 'collector_10',
+
+    name: {
+      en: 'Collector',
+      es: 'Coleccionista',
+    },
+
+    description: {
+      en: 'Capture 10 unique breeds',
+      es: 'Captura 10 razas únicas',
+    },
+
+    icon: 'Archive',
+    requiredCount: 10,
   },
+
   {
-    id: 'ten-unique',
-    title: 'Breed Enthusiast',
-    description: 'Collect 10 unique dog breeds.',
-    target: 10,
-    metric: 'uniqueBreedsCount',
-    icon: Target,
+    id: 'collector_25',
+
+    name: {
+      en: 'DogDex Expert',
+      es: 'Experto DogDex',
+    },
+
+    description: {
+      en: 'Capture 25 unique breeds',
+      es: 'Captura 25 razas únicas',
+    },
+
+    icon: 'ShieldCheck',
+    requiredCount: 25,
   },
+
   {
-    id: 'twenty-unique',
-    title: 'Breed Expert',
-    description: 'Collect 20 unique dog breeds.',
-    target: 20,
-    metric: 'uniqueBreedsCount',
-    icon: Award,
+    id: 'rare_hunter',
+
+    name: {
+      en: 'Rare Hunter',
+      es: 'Cazador de rarezas',
+    },
+
+    description: {
+      en: 'Capture 5 rare dogs',
+      es: 'Captura 5 perros raros',
+    },
+
+    icon: 'Gem',
+    requiredCount: 5,
   },
+
   {
-    id: 'first-rare',
-    title: 'Lucky Find',
-    description: 'Capture your first rare dog.',
-    target: 1,
-    metric: 'rareCaptures',
-    icon: Star,
+    id: 'favorites_master',
+
+    name: {
+      en: 'Favorites Master',
+      es: 'Maestro de favoritos',
+    },
+
+    description: {
+      en: 'Mark 10 captures as favorite',
+      es: 'Marca 10 capturas como favoritas',
+    },
+
+    icon: 'Heart',
+    requiredCount: 10,
   },
+
   {
-    id: 'five-rare',
-    title: 'Gem Hunter',
-    description: 'Capture 5 rare dogs.',
-    target: 5,
-    metric: 'rareCaptures',
-    icon: Gem,
+    id: 'mix_explorer',
+
+    name: {
+      en: 'Mix Explorer',
+      es: 'Explorador mestizo',
+    },
+
+    description: {
+      en: 'Capture 5 mixed dogs',
+      es: 'Captura 5 perros mestizos',
+    },
+
+    icon: 'Sparkles',
+    requiredCount: 5,
   },
 ];
 
