@@ -2,279 +2,347 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
-import { db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
-import { deleteCapture, toggleFavorite } from '@/app/actions';
-
-import type { DogEntry } from '@/types';
-
 import Image from 'next/image';
+
 import {
+  ArrowLeft,
   Calendar,
-  ChevronLeft,
   Heart,
-  Loader2,
   Percent,
   Tag,
-  FileText,
   Trash2,
 } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
+import {
+  doc,
+  deleteDoc,
+  updateDoc,
+  onSnapshot,
+} from 'firebase/firestore';
+
+import { db } from '@/lib/firebase';
+import { useAuth } from '@/contexts/AuthContext';
+
+import type { DogEntry } from '@/types';
+
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
 } from '@/components/ui/card';
 
-import { format } from 'date-fns';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import Balancer from 'react-wrap-balancer';
 
-function DetailItem({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: React.ElementType;
-  label: string;
-  value: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-start gap-4">
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-        <Icon className="h-5 w-5" />
-      </div>
+import { Skeleton } from '@/components/ui/skeleton';
 
-      <div>
-        <p className="text-sm font-medium text-muted-foreground">{label}</p>
-        <div className="text-base font-semibold text-foreground">{value}</div>
-      </div>
-    </div>
-  );
-}
+import { cn } from '@/lib/utils';
 
-export default function EntryDetailPage() {
-  const router = useRouter();
+import useLanguageStore from '@/store/language-store';
+
+const breedTranslations: Record<string, string> = {
+  'English Bulldog': 'Bulldog inglés',
+  'German Shepherd': 'Pastor alemán',
+  'Golden Retriever': 'Golden Retriever',
+  'Labrador Retriever': 'Labrador Retriever',
+  'French Bulldog': 'Bulldog francés',
+  'Poodle': 'Caniche',
+  'Beagle': 'Beagle',
+  'Rottweiler': 'Rottweiler',
+  'Chihuahua': 'Chihuahua',
+  'Boxer': 'Bóxer',
+  'Mixed Breed': 'Mestizo',
+};
+
+export default function EntryPage() {
   const params = useParams();
-  const { id } = params;
-
+  const router = useRouter();
   const { user } = useAuth();
+  const { language } = useLanguageStore();
 
   const [entry, setEntry] = useState<DogEntry | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isUpdatingFavorite, setIsUpdatingFavorite] = useState(false);
+
+  const t = {
+    back:
+      language === 'es'
+        ? 'Volver a la colección'
+        : 'Back to Collection',
+
+    capturedOn:
+      language === 'es'
+        ? 'Capturado el'
+        : 'Captured On',
+
+    aiConfidence:
+      language === 'es'
+        ? 'Confianza IA'
+        : 'AI Confidence',
+
+    rarity:
+      language === 'es'
+        ? 'Rareza'
+        : 'Rarity',
+
+    favorite:
+      language === 'es'
+        ? 'Favorito'
+        : 'Favorite',
+
+    yes:
+      language === 'es'
+        ? 'Sí'
+        : 'Yes',
+
+    no:
+      language === 'es'
+        ? 'No'
+        : 'No',
+
+    delete:
+      language === 'es'
+        ? 'Eliminar'
+        : 'Delete',
+
+    common:
+      language === 'es'
+        ? 'Común'
+        : 'Common',
+
+    uncommon:
+      language === 'es'
+        ? 'Poco común'
+        : 'Uncommon',
+
+    rare:
+      language === 'es'
+        ? 'Raro'
+        : 'Rare',
+  };
 
   useEffect(() => {
-    if (user && id) {
-      const getEntry = async () => {
-        const entryRef = doc(db, 'users', user.uid, 'entries', id as string);
-        const docSnap = await getDoc(entryRef);
+    if (!user || !params.id) return;
 
-        if (docSnap.exists()) {
-          setEntry({
-            id: docSnap.id,
-            ...docSnap.data(),
-          } as DogEntry);
-        } else {
-          router.replace('/collection');
-        }
+    const ref = doc(
+      db,
+      'users',
+      user.uid,
+      'entries',
+      params.id as string
+    );
 
-        setLoading(false);
-      };
+    const unsubscribe = onSnapshot(ref, (snapshot) => {
+      if (!snapshot.exists()) {
+        router.push('/collection');
+        return;
+      }
 
-      getEntry();
-    }
-  }, [user, id, router]);
+      setEntry({
+        id: snapshot.id,
+        ...snapshot.data(),
+      } as DogEntry);
 
-  async function handleDelete() {
-    if (!user || !entry?.id) return;
+      setLoading(false);
+    });
 
-    const confirmed = window.confirm(
-      'Are you sure you want to delete this capture?'
+    return () => unsubscribe();
+  }, [user, params.id, router]);
+
+  const handleDelete = async () => {
+    if (!user || !entry) return;
+
+    const confirmed = confirm(
+      language === 'es'
+        ? '¿Eliminar esta captura?'
+        : 'Delete this capture?'
     );
 
     if (!confirmed) return;
 
-    setIsDeleting(true);
+    await deleteDoc(
+      doc(db, 'users', user.uid, 'entries', entry.id)
+    );
 
-    const result = await deleteCapture(user.uid, entry.id);
+    router.push('/collection');
+  };
 
-    if (result.success) {
-      router.push('/collection');
-    } else {
-      alert(result.error || 'Failed to delete capture.');
-      setIsDeleting(false);
-    }
-  }
+  const toggleFavorite = async () => {
+    if (!user || !entry) return;
 
-  async function handleToggleFavorite() {
-    if (!user || !entry?.id || isUpdatingFavorite) return;
+    await updateDoc(
+      doc(db, 'users', user.uid, 'entries', entry.id),
+      {
+        favorite: !entry.favorite,
+      }
+    );
+  };
 
-    const nextFavorite = !entry.favorite;
-
-    setEntry({
-      ...entry,
-      favorite: nextFavorite,
-    });
-
-    setIsUpdatingFavorite(true);
-
-    const result = await toggleFavorite(user.uid, entry.id, nextFavorite);
-
-    if (!result.success) {
-      setEntry({
-        ...entry,
-        favorite: !nextFavorite,
-      });
-
-      alert(result.error || 'Failed to update favorite.');
-    }
-
-    setIsUpdatingFavorite(false);
-  }
-
-  if (loading) {
+  if (loading || !entry) {
     return (
-      <div className="container mx-auto max-w-2xl p-4 space-y-4">
-        <Skeleton className="h-10 w-48" />
-        <Skeleton className="aspect-video w-full" />
-        <Skeleton className="h-8 w-full" />
-        <Skeleton className="h-8 w-full" />
-        <Skeleton className="h-24 w-full" />
+      <div className="container mx-auto max-w-3xl p-4">
+        <Skeleton className="aspect-square w-full rounded-xl" />
       </div>
     );
   }
 
-  if (!entry) {
-    return null;
-  }
+  const rarityLabel =
+    entry.rarity === 'Common'
+      ? t.common
+      : entry.rarity === 'Uncommon'
+      ? t.uncommon
+      : t.rare;
+
+  const translatedBreed =
+    language === 'es'
+      ? breedTranslations[entry.breedName] || entry.breedName
+      : entry.breedName;
 
   return (
-    <div className="container mx-auto max-w-2xl p-4">
+    <div className="container mx-auto max-w-3xl p-4">
       <Button
         variant="ghost"
-        onClick={() => router.back()}
-        className="mb-4"
+        onClick={() => router.push('/collection')}
+        className="mb-4 gap-2"
       >
-        <ChevronLeft className="mr-2 h-4 w-4" />
-        Back to Collection
+        <ArrowLeft className="h-4 w-4" />
+        {t.back}
       </Button>
 
       <Card className="overflow-hidden">
-        <div className="relative aspect-video w-full">
+        <div className="relative aspect-square">
           <Image
             src={entry.photoUrl}
-            alt={entry.name || entry.breedName}
+            alt={entry.breedName}
             fill
             className="object-cover"
-            priority
           />
         </div>
 
-        <CardHeader>
-          <div className="flex items-start justify-between gap-4">
+        <CardContent className="space-y-6 p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
-              <CardTitle className="text-3xl font-bold">
-                <Balancer>{entry.name || entry.breedName}</Balancer>
-              </CardTitle>
+              <h1 className="text-4xl font-bold">
+                {translatedBreed}
+                {entry.isMixed && ' (Mix)'}
+              </h1>
 
               {entry.name && (
-                <p className="text-lg text-muted-foreground -mt-1">
-                  {entry.breedName}
+                <p className="mt-2 text-lg text-muted-foreground">
+                  {entry.name}
                 </p>
               )}
             </div>
 
             <div className="flex gap-2">
               <Button
-                variant={entry.favorite ? 'default' : 'outline'}
-                size="sm"
-                onClick={handleToggleFavorite}
-                disabled={isUpdatingFavorite}
+                variant="outline"
+                onClick={toggleFavorite}
               >
-                {isUpdatingFavorite ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <>
-                    <Heart
-                      className={`mr-2 h-4 w-4 ${
-                        entry.favorite ? 'fill-current' : ''
-                      }`}
-                    />
-                    {entry.favorite ? 'Favorited' : 'Favorite'}
-                  </>
-                )}
+                <Heart
+                  className={cn(
+                    'mr-2 h-4 w-4',
+                    entry.favorite && 'fill-current'
+                  )}
+                />
+                {t.favorite}
               </Button>
 
               <Button
                 variant="destructive"
-                size="sm"
                 onClick={handleDelete}
-                disabled={isDeleting}
               >
-                {isDeleting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <>
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete
-                  </>
-                )}
+                <Trash2 className="mr-2 h-4 w-4" />
+                {t.delete}
               </Button>
             </div>
           </div>
-        </CardHeader>
 
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <DetailItem
-              icon={Calendar}
-              label="Captured On"
-              value={format(entry.capturedAt.toDate(), 'PPP')}
-            />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="flex items-start gap-3 rounded-lg border p-4">
+              <Calendar className="mt-1 h-5 w-5 text-primary" />
 
-            <DetailItem
-              icon={Percent}
-              label="AI Confidence"
-              value={`${(entry.confidence * 100).toFixed(0)}%`}
-            />
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  {t.capturedOn}
+                </p>
 
-            <DetailItem
-              icon={Tag}
-              label="Rarity"
-              value={
+                <p className="font-semibold">
+                  {new Date(entry.capturedAt).toLocaleDateString(
+                    language === 'es' ? 'es-ES' : 'en-US',
+                    {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    }
+                  )}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 rounded-lg border p-4">
+              <Percent className="mt-1 h-5 w-5 text-primary" />
+
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  {t.aiConfidence}
+                </p>
+
+                <p className="font-semibold">
+                  {entry.confidence}%
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 rounded-lg border p-4">
+              <Tag className="mt-1 h-5 w-5 text-primary" />
+
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  {t.rarity}
+                </p>
+
                 <Badge
-                  variant={
-                    entry.rarity === 'Rare'
-                      ? 'destructive'
-                      : entry.rarity === 'Uncommon'
-                        ? 'secondary'
-                        : 'default'
-                  }
-                >
-                  {entry.rarity}
-                </Badge>
-              }
-            />
+                  className={cn(
+                    'mt-1',
+                    entry.rarity === 'Common' &&
+                      'bg-yellow-500 text-black hover:bg-yellow-500',
 
-            <DetailItem
-              icon={Heart}
-              label="Favorite"
-              value={entry.favorite ? 'Yes' : 'No'}
-            />
+                    entry.rarity === 'Uncommon' &&
+                      'bg-amber-800 text-white hover:bg-amber-800',
+
+                    entry.rarity === 'Rare' &&
+                      'bg-purple-600 text-white hover:bg-purple-600'
+                  )}
+                >
+                  {rarityLabel}
+                </Badge>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 rounded-lg border p-4">
+              <Heart className="mt-1 h-5 w-5 text-primary" />
+
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  {t.favorite}
+                </p>
+
+                <p className="font-semibold">
+                  {entry.favorite ? t.yes : t.no}
+                </p>
+              </div>
+            </div>
           </div>
 
           {entry.notes && (
-            <DetailItem
-              icon={FileText}
-              label="Notes"
-              value={<p className="whitespace-pre-wrap">{entry.notes}</p>}
-            />
+            <div>
+              <h3 className="mb-2 text-lg font-semibold">
+                Notes
+              </h3>
+
+              <p className="text-muted-foreground">
+                {entry.notes}
+              </p>
+            </div>
           )}
         </CardContent>
       </Card>
