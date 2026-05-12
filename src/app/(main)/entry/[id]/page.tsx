@@ -1,23 +1,24 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
+import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 import {
   ArrowLeft,
   Calendar,
-  Heart,
   Percent,
   Tag,
+  Heart,
   Trash2,
 } from 'lucide-react';
 
 import {
   doc,
+  onSnapshot,
   deleteDoc,
   updateDoc,
-  onSnapshot,
 } from 'firebase/firestore';
 
 import { db } from '@/lib/firebase';
@@ -32,7 +33,6 @@ import {
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-
 import { Skeleton } from '@/components/ui/skeleton';
 
 import { cn } from '@/lib/utils';
@@ -88,6 +88,11 @@ export default function EntryPage() {
         ? 'Favorito'
         : 'Favorite',
 
+    delete:
+      language === 'es'
+        ? 'Eliminar'
+        : 'Delete',
+
     yes:
       language === 'es'
         ? 'Sí'
@@ -97,11 +102,6 @@ export default function EntryPage() {
       language === 'es'
         ? 'No'
         : 'No',
-
-    delete:
-      language === 'es'
-        ? 'Eliminar'
-        : 'Delete',
 
     common:
       language === 'es'
@@ -117,6 +117,11 @@ export default function EntryPage() {
       language === 'es'
         ? 'Raro'
         : 'Rare',
+
+    notes:
+      language === 'es'
+        ? 'Notas'
+        : 'Notes',
   };
 
   useEffect(() => {
@@ -178,11 +183,16 @@ export default function EntryPage() {
 
   if (loading || !entry) {
     return (
-      <div className="container mx-auto max-w-3xl p-4">
-        <Skeleton className="aspect-square w-full rounded-xl" />
+      <div className="container mx-auto max-w-2xl p-4">
+        <Skeleton className="aspect-video w-full rounded-xl" />
       </div>
     );
   }
+
+  const translatedBreed =
+    language === 'es'
+      ? breedTranslations[entry.breedName] || entry.breedName
+      : entry.breedName;
 
   const rarityLabel =
     entry.rarity === 'Common'
@@ -191,24 +201,24 @@ export default function EntryPage() {
       ? t.uncommon
       : t.rare;
 
-  const translatedBreed =
-    language === 'es'
-      ? breedTranslations[entry.breedName] || entry.breedName
-      : entry.breedName;
+  const capturedDate =
+    typeof entry.capturedAt?.toDate === 'function'
+      ? entry.capturedAt.toDate()
+      : new Date(entry.capturedAt);
 
   return (
-    <div className="container mx-auto max-w-3xl p-4">
-      <Button
-        variant="ghost"
-        onClick={() => router.push('/collection')}
-        className="mb-4 gap-2"
+    <div className="container mx-auto max-w-2xl p-4">
+      <Link
+        href="/collection"
+        className="mb-4 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
         {t.back}
-      </Button>
+      </Link>
 
       <Card className="overflow-hidden">
-        <div className="relative aspect-square">
+        {/* IMAGE */}
+        <div className="relative aspect-video w-full">
           <Image
             src={entry.photoUrl}
             alt={entry.breedName}
@@ -218,9 +228,10 @@ export default function EntryPage() {
         </div>
 
         <CardContent className="space-y-6 p-6">
+          {/* HEADER */}
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
-              <h1 className="text-4xl font-bold">
+              <h1 className="text-4xl font-bold leading-tight">
                 {translatedBreed}
                 {entry.isMixed && ' (Mix)'}
               </h1>
@@ -256,7 +267,9 @@ export default function EntryPage() {
             </div>
           </div>
 
+          {/* INFO GRID */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {/* DATE */}
             <div className="flex items-start gap-3 rounded-lg border p-4">
               <Calendar className="mt-1 h-5 w-5 text-primary" />
 
@@ -266,7 +279,7 @@ export default function EntryPage() {
                 </p>
 
                 <p className="font-semibold">
-                  {new Date(entry.capturedAt).toLocaleDateString(
+                  {capturedDate.toLocaleDateString(
                     language === 'es' ? 'es-ES' : 'en-US',
                     {
                       year: 'numeric',
@@ -278,6 +291,7 @@ export default function EntryPage() {
               </div>
             </div>
 
+            {/* CONFIDENCE */}
             <div className="flex items-start gap-3 rounded-lg border p-4">
               <Percent className="mt-1 h-5 w-5 text-primary" />
 
@@ -287,11 +301,12 @@ export default function EntryPage() {
                 </p>
 
                 <p className="font-semibold">
-                  {entry.confidence}%
+                  {Math.round(entry.confidence)}%
                 </p>
               </div>
             </div>
 
+            {/* RARITY */}
             <div className="flex items-start gap-3 rounded-lg border p-4">
               <Tag className="mt-1 h-5 w-5 text-primary" />
 
@@ -318,6 +333,7 @@ export default function EntryPage() {
               </div>
             </div>
 
+            {/* FAVORITE */}
             <div className="flex items-start gap-3 rounded-lg border p-4">
               <Heart className="mt-1 h-5 w-5 text-primary" />
 
@@ -333,10 +349,11 @@ export default function EntryPage() {
             </div>
           </div>
 
+          {/* NOTES */}
           {entry.notes && (
             <div>
               <h3 className="mb-2 text-lg font-semibold">
-                Notes
+                {t.notes}
               </h3>
 
               <p className="text-muted-foreground">
