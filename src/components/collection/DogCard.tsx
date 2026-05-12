@@ -53,7 +53,7 @@ export default function DogCard({ entry }: Props) {
       : entry.breedName;
 
   return (
-    <Link href={`/collection/${entry.id}`}>
+    <Link href={`/entry/${entry.id}`}>
       <Card className="group overflow-hidden transition-all hover:scale-[1.02] hover:border-primary/60">
         <div className="relative aspect-square overflow-hidden">
           <Image
