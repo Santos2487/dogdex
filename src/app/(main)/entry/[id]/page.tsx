@@ -301,7 +301,7 @@ export default function EntryPage() {
                 </p>
 
                 <p className="font-semibold">
-                  {Math.round(entry.confidence)}%
+                  {Math.round((entry.confidence || 0) * 100)}%
                 </p>
               </div>
             </div>
