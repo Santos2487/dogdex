@@ -39,19 +39,7 @@ import { cn } from '@/lib/utils';
 
 import useLanguageStore from '@/store/language-store';
 
-const breedTranslations: Record<string, string> = {
-  'English Bulldog': 'Bulldog inglés',
-  'German Shepherd': 'Pastor alemán',
-  'Golden Retriever': 'Golden Retriever',
-  'Labrador Retriever': 'Labrador Retriever',
-  'French Bulldog': 'Bulldog francés',
-  'Poodle': 'Caniche',
-  'Beagle': 'Beagle',
-  'Rottweiler': 'Rottweiler',
-  'Chihuahua': 'Chihuahua',
-  'Boxer': 'Bóxer',
-  'Mixed Breed': 'Mestizo',
-};
+import { translateBreed } from '@/lib/breed-translations';
 
 export default function EntryPage() {
   const params = useParams();
@@ -189,10 +177,10 @@ export default function EntryPage() {
     );
   }
 
-  const translatedBreed =
-    language === 'es'
-      ? breedTranslations[entry.breedName] || entry.breedName
-      : entry.breedName;
+  const translatedBreed = translateBreed(
+    entry.breedName,
+    language
+  );
 
   const rarityLabel =
     entry.rarity === 'Common'

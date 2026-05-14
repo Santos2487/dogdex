@@ -17,19 +17,7 @@ import { cn } from '@/lib/utils';
 
 import useLanguageStore from '@/store/language-store';
 
-const breedTranslations: Record<string, string> = {
-  'English Bulldog': 'Bulldog inglés',
-  'German Shepherd': 'Pastor alemán',
-  'Golden Retriever': 'Golden Retriever',
-  'Labrador Retriever': 'Labrador Retriever',
-  'French Bulldog': 'Bulldog francés',
-  'Poodle': 'Caniche',
-  'Beagle': 'Beagle',
-  'Rottweiler': 'Rottweiler',
-  'Chihuahua': 'Chihuahua',
-  'Boxer': 'Bóxer',
-  'Mixed Breed': 'Mestizo',
-};
+import { translateBreed } from '@/lib/breed-translations';
 
 type Props = {
   entry: DogEntry;
@@ -47,10 +35,10 @@ export default function DogCard({ entry }: Props) {
         : 'Raro'
       : entry.rarity;
 
-  const translatedBreed =
-    language === 'es'
-      ? breedTranslations[entry.breedName] || entry.breedName
-      : entry.breedName;
+  const translatedBreed = translateBreed(
+    entry.breedName,
+    language
+  );
 
   return (
     <Link href={`/entry/${entry.id}`}>
