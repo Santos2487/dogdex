@@ -1,8 +1,24 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, onAuthStateChanged, signInAnonymously } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from 'react';
+
+import {
+  User,
+  onAuthStateChanged,
+  signInAnonymously,
+  linkWithPopup,
+  signInWithPopup,
+  signOut,
+} from 'firebase/auth';
+
+import { auth, db, googleProvider } from '@/lib/firebase';
+
 import {
   doc,
   setDoc,
@@ -12,6 +28,7 @@ import {
   onSnapshot,
   getDoc,
 } from 'firebase/firestore';
+
 import { initialAchievements } from '@/lib/data';
 import type { UserProfile } from '@/types';
 
@@ -19,15 +36,19 @@ interface AuthContextType {
   user: User | null;
   userData: UserProfile | null;
   loading: boolean;
+  signInWithGoogle: () => Promise<void>;
+  signOutUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   userData: null,
   loading: true,
+  signInWithGoogle: async () => {},
+  signOutUser: async () => {},
 });
 
-async function createUserProfile(uid: string) {
+async function createUserProfile(uid: string, user?: User) {
   const userRef = doc(db, 'users', uid);
   const existingUser = await getDoc(userRef);
 
@@ -35,7 +56,7 @@ async function createUserProfile(uid: string) {
     const newUserProfile: UserProfile = {
       uid,
       createdAt: serverTimestamp() as any,
-      authProvider: 'anonymous',
+      authProvider: user?.isAnonymous ? 'anonymous' : 'google',
       level: 1,
       xp: 0,
       totalCaptures: 0,
@@ -44,7 +65,13 @@ async function createUserProfile(uid: string) {
 
     await setDoc(userRef, newUserProfile, { merge: true });
 
-    const achievementsCollectionRef = collection(db, 'users', uid, 'achievements');
+    const achievementsCollectionRef = collection(
+      db,
+      'users',
+      uid,
+      'achievements'
+    );
+
     const batch = writeBatch(db);
 
     initialAchievements.forEach((ach) => {
@@ -63,6 +90,18 @@ async function createUserProfile(uid: string) {
     });
 
     await batch.commit();
+  } else if (user && !user.isAnonymous) {
+    await setDoc(
+      userRef,
+      {
+        authProvider: 'google',
+        email: user.email || null,
+        displayName: user.displayName || null,
+        photoURL: user.photoURL || null,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
   }
 }
 
@@ -71,13 +110,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [userData, setUserData] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const signInWithGoogle = async () => {
+    const currentUser = auth.currentUser;
+
+    if (currentUser?.isAnonymous) {
+      try {
+        const result = await linkWithPopup(currentUser, googleProvider);
+        await createUserProfile(result.user.uid, result.user);
+        return;
+      } catch (error: any) {
+        if (error?.code !== 'auth/credential-already-in-use') {
+          throw error;
+        }
+      }
+    }
+
+    const result = await signInWithPopup(auth, googleProvider);
+    await createUserProfile(result.user.uid, result.user);
+  };
+
+  const signOutUser = async () => {
+    await signOut(auth);
+  };
+
   useEffect(() => {
-    let unsubscribeProfile: () => void;
+    let unsubscribeProfile: (() => void) | undefined;
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       try {
         if (currentUser) {
-          await createUserProfile(currentUser.uid);
+          await createUserProfile(currentUser.uid, currentUser);
 
           if (unsubscribeProfile) unsubscribeProfile();
 
@@ -93,7 +155,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           });
         } else {
           const userCredential = await signInAnonymously(auth);
-          await createUserProfile(userCredential.user.uid);
+          await createUserProfile(userCredential.user.uid, userCredential.user);
         }
       } catch (error) {
         console.error('Auth/Profile error:', error);
@@ -108,7 +170,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, userData, loading }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        userData,
+        loading,
+        signInWithGoogle,
+        signOutUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
