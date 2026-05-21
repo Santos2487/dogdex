@@ -6,16 +6,23 @@ import Image from 'next/image';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { getRarityFromBreed } from '@/lib/data';
-import { saveCapture } from '@/app/actions';
+import { getRarityFromBreed, getLevelFromXp, initialAchievements } from '@/lib/data';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import useLanguageStore from '@/store/language-store';
 
-import { storage } from '@/lib/firebase';
+import { db, storage } from '@/lib/firebase';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
+import {
+  collection,
+  doc,
+  getDocs,
+  query,
+  runTransaction,
+  where,
+} from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
 
 import { Button } from '@/components/ui/button';
@@ -115,6 +122,7 @@ export default function ReviewForm() {
 
     try {
       const entryId = uuidv4();
+
       const storageRef = ref(
         storage,
         `users/${user.uid}/entries/${entryId}.jpg`
@@ -123,27 +131,139 @@ export default function ReviewForm() {
       await uploadString(storageRef, photoDataUri, 'data_url');
       const photoUrl = await getDownloadURL(storageRef);
 
-      const result = await saveCapture(
-        user.uid,
-        { ...data, rarity: finalRarity, isMixed: isMixed || false },
-        photoUrl,
-        confidence
+      const entriesRef = collection(db, 'users', user.uid, 'entries');
+
+      const existingBreedDocs = await getDocs(
+        query(entriesRef, where('breedName', '==', data.breedName))
       );
 
-      if (result.success) {
-        setRevealData({
-          breed: data.breedName,
+      const rareCapturesSnapshot = await getDocs(
+        query(entriesRef, where('rarity', 'in', ['Uncommon', 'Rare']))
+      );
+
+      const achievementsRef = collection(
+        db,
+        'users',
+        user.uid,
+        'achievements'
+      );
+
+      const achievementsSnapshot = await getDocs(query(achievementsRef));
+
+      const achievements = achievementsSnapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })) as any[];
+
+      const isNewBreed = existingBreedDocs.empty;
+      const isRare = finalRarity !== 'Common';
+
+      let xpGained = 1;
+      if (isNewBreed) xpGained += 2;
+      if (finalRarity === 'Rare') xpGained += 1;
+
+      await runTransaction(db, async (transaction) => {
+        const userRef = doc(db, 'users', user.uid);
+        const userDoc = await transaction.get(userRef);
+
+        if (!userDoc.exists()) {
+          throw new Error('User profile not found.');
+        }
+
+        const userData = userDoc.data();
+
+        const currentXp = userData.xp || 0;
+        const currentTotalCaptures = userData.totalCaptures || 0;
+        const currentUniqueBreedsCount = userData.uniqueBreedsCount || 0;
+
+        const newXp = currentXp + xpGained;
+        const newTotalCaptures = currentTotalCaptures + 1;
+        const newUniqueBreedsCount = isNewBreed
+          ? currentUniqueBreedsCount + 1
+          : currentUniqueBreedsCount;
+
+        const newLevel = getLevelFromXp(newXp).level;
+
+        const entryRef = doc(
+          db,
+          'users',
+          user.uid,
+          'entries',
+          entryId
+        );
+
+        transaction.set(entryRef, {
+          photoUrl,
+          ...data,
           rarity: finalRarity,
-          isMixed,
-          meta: result.meta,
+          isMixed: isMixed || false,
+          confidence,
+          capturedAt: new Date(),
+          userId: user.uid,
+          aiProvider: 'gemini',
         });
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: result.error,
+
+        const newRareCapturesCount =
+          rareCapturesSnapshot.size + (finalRarity !== 'Common' ? 1 : 0);
+
+        for (const achDef of initialAchievements) {
+          const achievement = achievements.find((a) => a.id === achDef.id);
+
+          if (achievement && !achievement.unlocked) {
+            let currentProgress = 0;
+
+            if (achDef.metric === 'totalCaptures') {
+              currentProgress = newTotalCaptures;
+            }
+
+            if (achDef.metric === 'uniqueBreedsCount') {
+              currentProgress = newUniqueBreedsCount;
+            }
+
+            if (achDef.metric === 'rareCaptures') {
+              currentProgress = newRareCapturesCount;
+            }
+
+            const achRef = doc(
+              db,
+              'users',
+              user.uid,
+              'achievements',
+              achDef.id
+            );
+
+            if (currentProgress >= achDef.target) {
+              transaction.update(achRef, {
+                progress: currentProgress,
+                unlocked: true,
+                unlockedAt: new Date(),
+              });
+            } else {
+              transaction.update(achRef, {
+                progress: currentProgress,
+              });
+            }
+          }
+        }
+
+        transaction.update(userRef, {
+          xp: newXp,
+          level: newLevel,
+          totalCaptures: newTotalCaptures,
+          uniqueBreedsCount: newUniqueBreedsCount,
         });
-      }
+      });
+
+      setRevealData({
+        breed: data.breedName,
+        rarity: finalRarity,
+        isMixed,
+        meta: {
+          isNewBreed,
+          isRare,
+          xpGained,
+        },
+      });
     } catch (e: any) {
       toast({
         variant: 'destructive',
