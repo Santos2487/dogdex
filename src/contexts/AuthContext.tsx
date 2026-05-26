@@ -14,7 +14,9 @@ import {
   signInAnonymously,
   linkWithPopup,
   signInWithPopup,
+  signInWithCredential,
   signOut,
+  GoogleAuthProvider,
 } from 'firebase/auth';
 
 import { auth, db, googleProvider } from '@/lib/firebase';
@@ -90,7 +92,9 @@ async function createUserProfile(uid: string, user?: User) {
     });
 
     await batch.commit();
-  } else if (user && !user.isAnonymous) {
+  }
+
+  if (user && !user.isAnonymous) {
     await setDoc(
       userRef,
       {
@@ -119,6 +123,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         await createUserProfile(result.user.uid, result.user);
         return;
       } catch (error: any) {
+        if (error?.code === 'auth/credential-already-in-use') {
+          const credential = GoogleAuthProvider.credentialFromError(error);
+
+          if (credential) {
+            const result = await signInWithCredential(auth, credential);
+            await createUserProfile(result.user.uid, result.user);
+            return;
+          }
+        }
+
         if (error?.code !== 'auth/credential-already-in-use') {
           throw error;
         }
@@ -130,6 +144,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOutUser = async () => {
+    setUserData(null);
+    setUser(null);
     await signOut(auth);
   };
 
@@ -138,25 +154,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       try {
+        if (unsubscribeProfile) {
+          unsubscribeProfile();
+          unsubscribeProfile = undefined;
+        }
+
         if (currentUser) {
           await createUserProfile(currentUser.uid, currentUser);
-
-          if (unsubscribeProfile) unsubscribeProfile();
 
           const userRef = doc(db, 'users', currentUser.uid);
 
           unsubscribeProfile = onSnapshot(userRef, (docSnap) => {
             if (docSnap.exists()) {
               setUserData(docSnap.data() as UserProfile);
+            } else {
+              setUserData(null);
             }
 
             setUser(currentUser);
             setLoading(false);
           });
-        } else {
-          const userCredential = await signInAnonymously(auth);
-          await createUserProfile(userCredential.user.uid, userCredential.user);
+
+          return;
         }
+
+        setUser(null);
+        setUserData(null);
+
+        const userCredential = await signInAnonymously(auth);
+        await createUserProfile(userCredential.user.uid, userCredential.user);
       } catch (error) {
         console.error('Auth/Profile error:', error);
         setLoading(false);
@@ -165,7 +191,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     return () => {
       unsubscribeAuth();
-      if (unsubscribeProfile) unsubscribeProfile();
+
+      if (unsubscribeProfile) {
+        unsubscribeProfile();
+      }
     };
   }, []);
 

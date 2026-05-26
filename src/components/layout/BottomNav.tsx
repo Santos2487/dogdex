@@ -39,35 +39,40 @@ export default function BottomNav() {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur">
-      <div className="mx-auto flex max-w-lg items-center justify-around py-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2">
+      <div className="mx-auto flex max-w-lg items-center justify-around px-2">
         {navItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive =
+            pathname === item.href ||
+            (item.href !== '/capture' && pathname.startsWith(item.href));
 
           if (item.isCenter) {
             return (
-              <Link key={item.href} href={item.href}>
-                <div className="flex flex-col items-center justify-center">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg">
-                    <item.icon className="h-6 w-6" />
-                  </div>
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-label={language === 'es' ? 'Capturar' : 'Capture'}
+                className="flex h-16 w-16 items-center justify-center rounded-full"
+              >
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg active:scale-95 transition-transform">
+                  <item.icon className="h-6 w-6" />
                 </div>
               </Link>
             );
           }
 
           return (
-            <Link key={item.href} href={item.href}>
-              <div
-                className={`flex flex-col items-center justify-center text-xs ${
-                  isActive
-                    ? 'text-primary'
-                    : 'text-muted-foreground hover:text-primary'
-                }`}
-              >
-                <item.icon className="h-5 w-5 mb-1" />
-                {item.label}
-              </div>
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex h-14 min-w-14 flex-col items-center justify-center rounded-xl px-2 text-xs transition-colors active:scale-95 ${
+                isActive
+                  ? 'text-primary'
+                  : 'text-muted-foreground hover:text-primary'
+              }`}
+            >
+              <item.icon className="mb-1 h-5 w-5" />
+              <span className="leading-none">{item.label}</span>
             </Link>
           );
         })}

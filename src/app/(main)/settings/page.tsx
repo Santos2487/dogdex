@@ -6,6 +6,7 @@ import {
   Languages,
   LogIn,
   LogOut,
+  Loader2,
 } from 'lucide-react';
 
 import {
@@ -17,26 +18,68 @@ import {
 } from '@/components/ui/card';
 
 import { Button } from '@/components/ui/button';
-
 import { useAuth } from '@/contexts/AuthContext';
-
 import { Skeleton } from '@/components/ui/skeleton';
-
 import Balancer from 'react-wrap-balancer';
-
 import useLanguageStore from '@/store/language-store';
+import { useToast } from '@/hooks/use-toast';
+import { useState } from 'react';
 
 export default function SettingsPage() {
-  const {
-    user,
-    loading,
-    signInWithGoogle,
-    signOutUser,
-  } = useAuth();
-
+  const { user, loading, signInWithGoogle, signOutUser } = useAuth();
   const { language, setLanguage } = useLanguageStore();
+  const { toast } = useToast();
+
+  const [authActionLoading, setAuthActionLoading] = useState(false);
 
   const isAnonymous = user?.isAnonymous;
+
+  const handleGoogleLogin = async () => {
+    setAuthActionLoading(true);
+
+    try {
+      await signInWithGoogle();
+    } catch (error: any) {
+      console.error('Google login failed:', error);
+
+      toast({
+        variant: 'destructive',
+        title: language === 'es' ? 'Error al iniciar sesión' : 'Login failed',
+        description:
+          error?.message ||
+          (language === 'es'
+            ? 'No se pudo iniciar sesión con Google.'
+            : 'Could not sign in with Google.'),
+      });
+    } finally {
+      setAuthActionLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    setAuthActionLoading(true);
+
+    try {
+      await signOutUser();
+    } catch (error: any) {
+      console.error('Sign out failed:', error);
+
+      toast({
+        variant: 'destructive',
+        title:
+          language === 'es'
+            ? 'Error al cerrar sesión'
+            : 'Sign out failed',
+        description:
+          error?.message ||
+          (language === 'es'
+            ? 'No se pudo cerrar sesión.'
+            : 'Could not sign out.'),
+      });
+    } finally {
+      setAuthActionLoading(false);
+    }
+  };
 
   return (
     <div className="container mx-auto max-w-lg p-4">
@@ -48,12 +91,10 @@ export default function SettingsPage() {
         </h1>
       </div>
 
-      {/* LANGUAGE */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Languages className="h-5 w-5 text-primary" />
-
             {language === 'es' ? 'Idioma' : 'Language'}
           </CardTitle>
 
@@ -85,7 +126,6 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* ACCOUNT */}
       <Card>
         <CardHeader>
           <CardTitle>
@@ -102,7 +142,6 @@ export default function SettingsPage() {
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {/* STATUS */}
           <div className="flex items-center justify-between rounded-lg border p-4">
             {loading ? (
               <div className="flex w-full items-center gap-3">
@@ -131,45 +170,58 @@ export default function SettingsPage() {
                       ? language === 'es'
                         ? 'Usuario invitado'
                         : 'Guest User'
-                      : user?.displayName ||
-                        user?.email ||
-                        'Google User'}
+                      : user?.displayName || user?.email || 'Google User'}
                   </p>
                 </div>
               </div>
             )}
           </div>
 
-          {/* GOOGLE LOGIN */}
           {!loading && isAnonymous && (
             <Button
               className="w-full"
-              onClick={signInWithGoogle}
+              onClick={handleGoogleLogin}
+              disabled={authActionLoading}
             >
-              <LogIn className="mr-2 h-4 w-4" />
+              {authActionLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <LogIn className="mr-2 h-4 w-4" />
+              )}
 
-              {language === 'es'
+              {authActionLoading
+                ? language === 'es'
+                  ? 'Conectando...'
+                  : 'Connecting...'
+                : language === 'es'
                 ? 'Continuar con Google'
                 : 'Continue with Google'}
             </Button>
           )}
 
-          {/* SIGN OUT */}
           {!loading && !isAnonymous && (
             <Button
               variant="outline"
               className="w-full"
-              onClick={signOutUser}
+              onClick={handleSignOut}
+              disabled={authActionLoading}
             >
-              <LogOut className="mr-2 h-4 w-4" />
+              {authActionLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <LogOut className="mr-2 h-4 w-4" />
+              )}
 
-              {language === 'es'
+              {authActionLoading
+                ? language === 'es'
+                  ? 'Cerrando sesión...'
+                  : 'Signing out...'
+                : language === 'es'
                 ? 'Cerrar sesión'
                 : 'Sign Out'}
             </Button>
           )}
 
-          {/* DESCRIPTION */}
           <p className="pt-4 text-sm text-muted-foreground">
             <Balancer>
               {isAnonymous
