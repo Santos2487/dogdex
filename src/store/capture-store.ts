@@ -1,45 +1,73 @@
 import { create } from 'zustand';
 
-type Rarity = 'Common' | 'Uncommon' | 'Rare';
+type CandidateBreed = {
+  breed: string;
+  confidence: number;
+};
 
-type CaptureState = {
+interface CaptureState {
   photoDataUri: string | null;
-  breedName: string | null;
-  confidence: number | null;
-  rarity: Rarity | null;
-  isMixed: boolean | null;
 
-  setCaptureData: (data: Partial<{
+  breedName: string | null;
+
+  confidence: number | null;
+
+  rarity: 'Common' | 'Uncommon' | 'Rare' | null;
+
+  isMixed: boolean;
+
+  candidateBreeds: CandidateBreed[];
+
+  setCaptureData: (data: {
     photoDataUri: string;
     breedName: string;
     confidence: number;
-    rarity: Rarity;
+    rarity: 'Common' | 'Uncommon' | 'Rare';
     isMixed: boolean;
-  }>) => void;
+    candidateBreeds?: CandidateBreed[];
+  }) => void;
 
-  clearCaptureData: () => void;
-};
+  clearCapture: () => void;
+}
 
 const useCaptureStore = create<CaptureState>((set) => ({
   photoDataUri: null,
+
   breedName: null,
+
   confidence: null,
+
   rarity: null,
-  isMixed: null,
 
-  setCaptureData: (data) =>
-    set((state) => ({
-      ...state,
-      ...data,
-    })),
+  isMixed: false,
 
-  clearCaptureData: () =>
+  candidateBreeds: [],
+
+  setCaptureData: ({
+    photoDataUri,
+    breedName,
+    confidence,
+    rarity,
+    isMixed,
+    candidateBreeds = [],
+  }) =>
+    set({
+      photoDataUri,
+      breedName,
+      confidence,
+      rarity,
+      isMixed,
+      candidateBreeds,
+    }),
+
+  clearCapture: () =>
     set({
       photoDataUri: null,
       breedName: null,
       confidence: null,
       rarity: null,
-      isMixed: null,
+      isMixed: false,
+      candidateBreeds: [],
     }),
 }));
 

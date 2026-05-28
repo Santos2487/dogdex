@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import useLanguageStore from '@/store/language-store';
+import { translateBreed } from '@/lib/breed-translations';
 
 import { db, storage } from '@/lib/firebase';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
@@ -67,7 +68,10 @@ export default function ReviewForm() {
     confidence,
     rarity: aiRarity,
     isMixed,
+    candidateBreeds,
   } = useCaptureStore();
+
+  const aiCandidateBreeds = candidateBreeds || [];
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [revealData, setRevealData] = useState<any>(null);
@@ -94,6 +98,10 @@ export default function ReviewForm() {
     common: language === 'es' ? 'Común' : 'Common',
     uncommon: language === 'es' ? 'Poco común' : 'Uncommon',
     rare: language === 'es' ? 'Raro' : 'Rare',
+    alternatives:
+      language === 'es'
+        ? 'Posibles alternativas'
+        : 'Possible alternatives',
   };
 
   const getRarityLabel = (rarity: string) => {
@@ -198,6 +206,7 @@ export default function ReviewForm() {
           rarity: finalRarity,
           isMixed: isMixed || false,
           confidence,
+          candidateBreeds: aiCandidateBreeds,
           capturedAt: new Date(),
           userId: user.uid,
           aiProvider: 'gemini',
@@ -291,7 +300,7 @@ export default function ReviewForm() {
           </div>
 
           <div className="text-2xl font-semibold">
-            {breed} {isMixed ? '(Mix)' : ''}
+            {translateBreed(breed, language)} {isMixed ? '(Mix)' : ''}
           </div>
 
           <Badge>
@@ -355,6 +364,40 @@ export default function ReviewForm() {
               </span>
               <Badge>{getRarityLabel(finalRarity)}</Badge>
             </div>
+
+            {aiCandidateBreeds.length > 0 && (
+              <div className="rounded-lg border p-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  {t.alternatives}
+                </div>
+
+                <div className="space-y-3">
+                  {aiCandidateBreeds.map((candidate, index) => (
+                    <div key={`${candidate.breed}-${index}`} className="space-y-1">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>
+                          {translateBreed(candidate.breed, language)}
+                        </span>
+
+                        <span className="font-medium">
+                          {(candidate.confidence * 100).toFixed(0)}%
+                        </span>
+                      </div>
+
+                      <div className="h-2 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-primary transition-all"
+                          style={{
+                            width: `${Math.min(candidate.confidence * 100, 100)}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <FormField
               control={form.control}
