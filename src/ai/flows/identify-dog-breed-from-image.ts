@@ -90,10 +90,6 @@ Mixed breed rules:
 - Set isMixed to true when the dog appears mixed or when the breed is uncertain due to mixed traits.
 - Use candidateBreeds to include likely alternatives or component breeds.
 
-- Do not classify a dog as mixed breed unless there is clear visual evidence of traits from multiple breeds.
-- When in doubt between a pure breed and a mix, prefer the pure breed and reduce confidence.
-- Avoid using "Mixed Breed" unless no dominant breed can reasonably be identified.
-
 Difficult image rules:
 - If the dog is side-facing, partially visible, moving, far away, low resolution, or the head is not fully clear, still provide the best likely breed identification.
 - Do not fail only because the image is imperfect.
@@ -107,20 +103,12 @@ Confidence rules:
 - Use below 0.40 only when the image is poor, the dog is obscured, or the dog is not clearly visible.
 - If uncertain, lower the confidence instead of leaving breedName empty.
 
-- Confidence should reflect identification certainty, not image quality alone.
-- A poor quality image of a very recognizable breed may still have moderate confidence.
-- Do not inflate confidence above 0.90 unless multiple defining breed characteristics are clearly visible.
-
 Rarity rules:
 - "Common" = very popular and frequently seen breeds.
 - "Uncommon" = moderately common, distinctive, or less frequently seen breeds.
 - "Rare" = uncommon in everyday sightings, hard-to-find, unusual, or difficult-to-identify breeds.
 - For mixed breeds, estimate rarity based on the dominant breed and how distinctive/unusual the mix appears.
 - Estimate rarity based on general global popularity and recognizability.
-
-- Never assign "Rare" solely because confidence is low.
-- Rare breeds should only be used when the breed itself is genuinely uncommon.
-- Common breeds photographed poorly are still Common breeds.
 
 Return JSON only with this exact structure:
 
