@@ -83,6 +83,62 @@ export const initialAchievements: InitialAchievement[] = [
     icon: Bone,
   },
   {
+    id: 'ten-captures',
+    title: {
+      en: 'Dog Spotter',
+      es: 'Avistador canino',
+    },
+    description: {
+      en: 'Capture 10 dogs.',
+      es: 'Captura 10 perros.',
+    },
+    target: 10,
+    metric: 'totalCaptures',
+    icon: Bone,
+  },
+  {
+    id: 'twenty-five-captures',
+    title: {
+      en: 'Urban Tracker',
+      es: 'Rastreador urbano',
+    },
+    description: {
+      en: 'Capture 25 dogs.',
+      es: 'Captura 25 perros.',
+    },
+    target: 25,
+    metric: 'totalCaptures',
+    icon: Award,
+  },
+  {
+    id: 'fifty-captures',
+    title: {
+      en: 'DogDex Veteran',
+      es: 'Veterano DogDex',
+    },
+    description: {
+      en: 'Capture 50 dogs.',
+      es: 'Captura 50 perros.',
+    },
+    target: 50,
+    metric: 'totalCaptures',
+    icon: Award,
+  },
+  {
+    id: 'hundred-captures',
+    title: {
+      en: 'Legendary Tracker',
+      es: 'Rastreador legendario',
+    },
+    description: {
+      en: 'Capture 100 dogs.',
+      es: 'Captura 100 perros.',
+    },
+    target: 100,
+    metric: 'totalCaptures',
+    icon: Award,
+  },
+  {
     id: 'five-unique',
     title: {
       en: 'Pack Starter',
@@ -125,6 +181,62 @@ export const initialAchievements: InitialAchievement[] = [
     icon: Award,
   },
   {
+    id: 'fifty-unique',
+    title: {
+      en: 'DogDex Master',
+      es: 'Maestro DogDex',
+    },
+    description: {
+      en: 'Collect 50 unique dog breeds.',
+      es: 'Colecciona 50 razas de perro únicas.',
+    },
+    target: 50,
+    metric: 'uniqueBreedsCount',
+    icon: Award,
+  },
+  {
+    id: 'first-uncommon',
+    title: {
+      en: 'Uncommon Find',
+      es: 'Hallazgo poco común',
+    },
+    description: {
+      en: 'Capture your first uncommon dog.',
+      es: 'Captura tu primer perro poco común.',
+    },
+    target: 1,
+    metric: 'uncommonCaptures',
+    icon: Star,
+  },
+  {
+    id: 'five-uncommon',
+    title: {
+      en: 'Uncommon Hunter',
+      es: 'Cazador de poco comunes',
+    },
+    description: {
+      en: 'Capture 5 uncommon dogs.',
+      es: 'Captura 5 perros poco comunes.',
+    },
+    target: 5,
+    metric: 'uncommonCaptures',
+    icon: Gem,
+  },
+  {
+    id: 'ten-uncommon',
+    title: {
+      en: 'Uncommon Expert',
+      es: 'Experto en poco comunes',
+    },
+    description: {
+      en: 'Capture 10 uncommon dogs.',
+      es: 'Captura 10 perros poco comunes.',
+    },
+    target: 10,
+    metric: 'uncommonCaptures',
+    icon: Gem,
+  },
+  {
     id: 'first-rare',
     title: {
       en: 'Lucky Find',
@@ -149,6 +261,20 @@ export const initialAchievements: InitialAchievement[] = [
       es: 'Captura 5 perros raros.',
     },
     target: 5,
+    metric: 'rareCaptures',
+    icon: Gem,
+  },
+  {
+    id: 'ten-rare',
+    title: {
+      en: 'Rare Specialist',
+      es: 'Especialista en rarezas',
+    },
+    description: {
+      en: 'Capture 10 rare dogs.',
+      es: 'Captura 10 perros raros.',
+    },
+    target: 10,
     metric: 'rareCaptures',
     icon: Gem,
   },

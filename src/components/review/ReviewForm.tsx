@@ -137,8 +137,12 @@ export default function ReviewForm() {
         query(entriesRef, where('breedName', '==', data.breedName))
       );
 
+      const uncommonCapturesSnapshot = await getDocs(
+        query(entriesRef, where('rarity', '==', 'Uncommon'))
+      );
+
       const rareCapturesSnapshot = await getDocs(
-        query(entriesRef, where('rarity', 'in', ['Uncommon', 'Rare']))
+        query(entriesRef, where('rarity', '==', 'Rare'))
       );
 
       const achievementsRef = collection(
@@ -203,8 +207,11 @@ export default function ReviewForm() {
           aiProvider: 'gemini',
         });
 
+        const newUncommonCapturesCount =
+          uncommonCapturesSnapshot.size + (finalRarity === 'Uncommon' ? 1 : 0);
+
         const newRareCapturesCount =
-          rareCapturesSnapshot.size + (finalRarity !== 'Common' ? 1 : 0);
+          rareCapturesSnapshot.size + (finalRarity === 'Rare' ? 1 : 0);
 
         for (const achDef of initialAchievements) {
           const achievement = achievements.find((a) => a.id === achDef.id);
@@ -218,6 +225,10 @@ export default function ReviewForm() {
 
             if (achDef.metric === 'uniqueBreedsCount') {
               currentProgress = newUniqueBreedsCount;
+            }
+
+            if (achDef.metric === 'uncommonCaptures') {
+              currentProgress = newUncommonCapturesCount;
             }
 
             if (achDef.metric === 'rareCaptures') {

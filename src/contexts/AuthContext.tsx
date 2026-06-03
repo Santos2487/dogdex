@@ -50,6 +50,41 @@ const AuthContext = createContext<AuthContextType>({
   signOutUser: async () => {},
 });
 
+async function ensureUserAchievements(uid: string) {
+  const achievementsCollectionRef = collection(
+    db,
+    'users',
+    uid,
+    'achievements'
+  );
+
+  const batch = writeBatch(db);
+  let hasMissingAchievements = false;
+
+  for (const ach of initialAchievements) {
+    const achRef = doc(achievementsCollectionRef, ach.id);
+    const achSnap = await getDoc(achRef);
+
+    if (!achSnap.exists()) {
+      const initialAchData = {
+        ...ach,
+        unlocked: false,
+        progress: 0,
+        unlockedAt: null,
+      };
+
+      delete (initialAchData as any).icon;
+
+      batch.set(achRef, initialAchData);
+      hasMissingAchievements = true;
+    }
+  }
+
+  if (hasMissingAchievements) {
+    await batch.commit();
+  }
+}
+
 async function createUserProfile(uid: string, user?: User) {
   const userRef = doc(db, 'users', uid);
   const existingUser = await getDoc(userRef);
@@ -66,33 +101,9 @@ async function createUserProfile(uid: string, user?: User) {
     };
 
     await setDoc(userRef, newUserProfile, { merge: true });
-
-    const achievementsCollectionRef = collection(
-      db,
-      'users',
-      uid,
-      'achievements'
-    );
-
-    const batch = writeBatch(db);
-
-    initialAchievements.forEach((ach) => {
-      const achRef = doc(achievementsCollectionRef, ach.id);
-
-      const initialAchData = {
-        ...ach,
-        unlocked: false,
-        progress: 0,
-        unlockedAt: null,
-      };
-
-      delete (initialAchData as any).icon;
-
-      batch.set(achRef, initialAchData);
-    });
-
-    await batch.commit();
   }
+
+  await ensureUserAchievements(uid);
 
   if (user && !user.isAnonymous) {
     await setDoc(

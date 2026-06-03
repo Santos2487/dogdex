@@ -34,5 +34,9 @@ export type Achievement = {
     unlocked: boolean;
     progress: number;
     unlockedAt: Timestamp | null;
-    metric: 'totalCaptures' | 'uniqueBreedsCount' | 'rareCaptures';
+    metric:
+  | 'totalCaptures'
+  | 'uniqueBreedsCount'
+  | 'uncommonCaptures'
+  | 'rareCaptures';
 };
