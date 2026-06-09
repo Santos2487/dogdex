@@ -7,6 +7,7 @@ import {
   LogIn,
   LogOut,
   Loader2,
+  BadgeCheck,
 } from 'lucide-react';
 
 import {
@@ -18,6 +19,7 @@ import {
 } from '@/components/ui/card';
 
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import Balancer from 'react-wrap-balancer';
@@ -25,14 +27,24 @@ import useLanguageStore from '@/store/language-store';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 
+import { db } from '@/lib/firebase';
+import {
+  doc,
+  runTransaction,
+  serverTimestamp,
+} from 'firebase/firestore';
+
 export default function SettingsPage() {
-  const { user, loading, signInWithGoogle, signOutUser } = useAuth();
+  const { user, userData, loading, signInWithGoogle, signOutUser } = useAuth();
   const { language, setLanguage } = useLanguageStore();
   const { toast } = useToast();
 
   const [authActionLoading, setAuthActionLoading] = useState(false);
+  const [trainerName, setTrainerName] = useState('');
+  const [trainerNameLoading, setTrainerNameLoading] = useState(false);
 
   const isAnonymous = user?.isAnonymous;
+  const hasTrainerName = Boolean(userData?.trainerName);
 
   const handleGoogleLogin = async () => {
     setAuthActionLoading(true);
@@ -40,8 +52,6 @@ export default function SettingsPage() {
     try {
       await signInWithGoogle();
     } catch (error: any) {
-      console.error('Google login failed:', error);
-
       toast({
         variant: 'destructive',
         title: language === 'es' ? 'Error al iniciar sesión' : 'Login failed',
@@ -62,8 +72,6 @@ export default function SettingsPage() {
     try {
       await signOutUser();
     } catch (error: any) {
-      console.error('Sign out failed:', error);
-
       toast({
         variant: 'destructive',
         title:
@@ -78,6 +86,100 @@ export default function SettingsPage() {
       });
     } finally {
       setAuthActionLoading(false);
+    }
+  };
+
+  const handleSaveTrainerName = async () => {
+    if (!user || !userData) return;
+
+    const cleanName = trainerName.trim();
+    const normalizedName = cleanName.toLowerCase();
+
+    if (!/^[A-Za-z0-9_]{3,20}$/.test(cleanName)) {
+      toast({
+        variant: 'destructive',
+        title: language === 'es' ? 'Nombre no válido' : 'Invalid name',
+        description:
+          language === 'es'
+            ? 'Usa entre 3 y 20 caracteres: letras, números o guion bajo.'
+            : 'Use 3 to 20 characters: letters, numbers, or underscore.',
+      });
+      return;
+    }
+
+    setTrainerNameLoading(true);
+
+    try {
+      await runTransaction(db, async (transaction) => {
+        const userRef = doc(db, 'users', user.uid);
+        const nameRef = doc(db, 'trainerNames', normalizedName);
+
+        const userSnap = await transaction.get(userRef);
+        const nameSnap = await transaction.get(nameRef);
+
+        if (!userSnap.exists()) {
+          throw new Error('User profile not found.');
+        }
+
+        const currentUserData = userSnap.data();
+
+        if (currentUserData.trainerName) {
+          throw new Error(
+            language === 'es'
+              ? 'Ya tienes un nombre de entrenador.'
+              : 'You already have a trainer name.'
+          );
+        }
+
+        if (nameSnap.exists()) {
+          throw new Error(
+            language === 'es'
+              ? 'Ese nombre ya está en uso.'
+              : 'That name is already taken.'
+          );
+        }
+
+        transaction.set(nameRef, {
+          uid: user.uid,
+          trainerName: cleanName,
+          trainerNameLower: normalizedName,
+          createdAt: serverTimestamp(),
+        });
+
+        transaction.update(userRef, {
+          trainerName: cleanName,
+          trainerNameLower: normalizedName,
+          trainerNameSetAt: serverTimestamp(),
+        });
+      });
+
+      toast({
+        title:
+          language === 'es'
+            ? 'Nombre guardado'
+            : 'Trainer name saved',
+        description:
+          language === 'es'
+            ? 'Tu nombre de entrenador ya está reservado.'
+            : 'Your trainer name is now reserved.',
+      });
+
+      setTrainerName('');
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title:
+          language === 'es'
+            ? 'No se pudo guardar'
+            : 'Could not save',
+        description:
+          error?.message ||
+          (language === 'es'
+            ? 'Prueba con otro nombre.'
+            : 'Try another name.'),
+      });
+    } finally {
+      setTrainerNameLoading(false);
     }
   };
 
@@ -176,6 +278,67 @@ export default function SettingsPage() {
               </div>
             )}
           </div>
+
+          {!loading && !isAnonymous && (
+            <div className="rounded-lg border p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <BadgeCheck className="h-5 w-5 text-primary" />
+
+                <p className="font-semibold">
+                  {language === 'es'
+                    ? 'Nombre de entrenador'
+                    : 'Trainer name'}
+                </p>
+              </div>
+
+              {hasTrainerName ? (
+                <>
+                  <p className="text-2xl font-bold">
+                    {userData?.trainerName}
+                  </p>
+
+                  <p className="text-sm text-muted-foreground">
+                    {language === 'es'
+                      ? 'Este nombre es único y no se puede cambiar.'
+                      : 'This name is unique and cannot be changed.'}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <Input
+                    value={trainerName}
+                    onChange={(e) => setTrainerName(e.target.value)}
+                    placeholder={
+                      language === 'es'
+                        ? 'Ej: Santos2487'
+                        : 'e.g., Santos2487'
+                    }
+                    maxLength={20}
+                  />
+
+                  <p className="text-xs text-muted-foreground">
+                    {language === 'es'
+                      ? 'Entre 3 y 20 caracteres. Solo letras, números y _. No podrás cambiarlo después.'
+                      : '3 to 20 characters. Letters, numbers and _ only. You cannot change it later.'}
+                  </p>
+
+                  <Button
+                    className="w-full"
+                    onClick={handleSaveTrainerName}
+                    disabled={trainerNameLoading}
+                  >
+                    {trainerNameLoading && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+
+                    {language === 'es'
+                      ? 'Guardar nombre'
+                      : 'Save trainer name'}
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
 
           {!loading && isAnonymous && (
             <Button
