@@ -75,7 +75,7 @@ export default function StatsPage() {
 
   const t = {
     title: language === 'es' ? 'Mis estadísticas' : 'My Stats',
-    trainer: language === 'es' ? 'Entrenador DogDex' : 'DogDex Trainer',
+    trainer: language === 'es' ? 'Coleccionista CanisQuest' : 'CanisQuest Collector',
     memberSince: language === 'es' ? 'Miembro desde' : 'Member since',
     level: language === 'es' ? 'Nivel' : 'Level',
     explorer: language === 'es' ? 'Explorador' : 'Explorer',

@@ -113,8 +113,8 @@ export const initialAchievements: InitialAchievement[] = [
   {
     id: 'fifty-captures',
     title: {
-      en: 'DogDex Veteran',
-      es: 'Veterano DogDex',
+      en: 'CanisQuest Veteran',
+      es: 'Veterano CanisQuest',
     },
     description: {
       en: 'Capture 50 dogs.',
@@ -183,8 +183,8 @@ export const initialAchievements: InitialAchievement[] = [
   {
     id: 'fifty-unique',
     title: {
-      en: 'DogDex Master',
-      es: 'Maestro DogDex',
+      en: 'CanisQuest Master',
+      es: 'Maestro CanisQuest',
     },
     description: {
       en: 'Collect 50 unique dog breeds.',

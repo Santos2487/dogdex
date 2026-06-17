@@ -126,8 +126,8 @@ export default function SettingsPage() {
         if (currentUserData.trainerName) {
           throw new Error(
             language === 'es'
-              ? 'Ya tienes un nombre de entrenador.'
-              : 'You already have a trainer name.'
+              ? 'Ya tienes un nombre de coleccionista.'
+              : 'You already have a collector name.'
           );
         }
 
@@ -160,8 +160,8 @@ export default function SettingsPage() {
             : 'Trainer name saved',
         description:
           language === 'es'
-            ? 'Tu nombre de entrenador ya está reservado.'
-            : 'Your trainer name is now reserved.',
+            ? 'Tu nombre de coleccionista ya está reservado.'
+            : 'Your collector name is now reserved.',
       });
 
       setTrainerName('');
@@ -286,8 +286,8 @@ export default function SettingsPage() {
 
                 <p className="font-semibold">
                   {language === 'es'
-                    ? 'Nombre de entrenador'
-                    : 'Trainer name'}
+                    ? 'Nombre de coleccionista'
+                    : 'Collector name'}
                 </p>
               </div>
 
@@ -310,8 +310,8 @@ export default function SettingsPage() {
                     onChange={(e) => setTrainerName(e.target.value)}
                     placeholder={
                       language === 'es'
-                        ? 'Ej: Santos2487'
-                        : 'e.g., Santos2487'
+                        ? 'Ej: Petrel2487'
+                        : 'e.g., Petrel2487'
                     }
                     maxLength={20}
                   />
@@ -333,7 +333,7 @@ export default function SettingsPage() {
 
                     {language === 'es'
                       ? 'Guardar nombre'
-                      : 'Save trainer name'}
+                      : 'Save collector name'}
                   </Button>
                 </>
               )}
