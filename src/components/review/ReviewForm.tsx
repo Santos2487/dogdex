@@ -22,6 +22,7 @@ import {
   query,
   runTransaction,
   where,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -263,6 +264,23 @@ export default function ReviewForm() {
           totalCaptures: newTotalCaptures,
           uniqueBreedsCount: newUniqueBreedsCount,
         });
+        if (userData.trainerName) {
+  const publicProfileRef = doc(db, 'publicProfiles', user.uid);
+
+  transaction.set(
+    publicProfileRef,
+    {
+      uid: user.uid,
+      trainerName: userData.trainerName,
+      level: newLevel,
+      xp: newXp,
+      totalCaptures: newTotalCaptures,
+      uniqueBreedsCount: newUniqueBreedsCount,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
       });
 
       setRevealData({

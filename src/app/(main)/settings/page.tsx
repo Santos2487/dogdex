@@ -147,10 +147,22 @@ export default function SettingsPage() {
         });
 
         transaction.update(userRef, {
-          trainerName: cleanName,
-          trainerNameLower: normalizedName,
-          trainerNameSetAt: serverTimestamp(),
-        });
+  trainerName: cleanName,
+  trainerNameLower: normalizedName,
+  trainerNameSetAt: serverTimestamp(),
+});
+
+const publicProfileRef = doc(db, 'publicProfiles', user.uid);
+
+transaction.set(publicProfileRef, {
+  uid: user.uid,
+  trainerName: cleanName,
+  level: userData.level ?? 1,
+  xp: userData.xp ?? 0,
+  totalCaptures: userData.totalCaptures ?? 0,
+  uniqueBreedsCount: userData.uniqueBreedsCount ?? 0,
+  updatedAt: serverTimestamp(),
+});
       });
 
       toast({

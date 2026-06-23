@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, BarChart2, Camera, Award, Settings } from 'lucide-react';
+import { Home, BarChart2, Camera, Trophy, Settings } from 'lucide-react';
 import useLanguageStore from '@/store/language-store';
 
 export default function BottomNav() {
@@ -27,9 +27,9 @@ export default function BottomNav() {
       isCenter: true,
     },
     {
-      href: '/badges',
-      label: language === 'es' ? 'Logros' : 'Badges',
-      icon: Award,
+      href: '/ranking',
+      label: 'Ranking',
+      icon: Trophy,
     },
     {
       href: '/settings',
