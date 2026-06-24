@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import {
   BarChart3,
@@ -11,6 +12,7 @@ import {
   Target,
   User,
   CalendarDays,
+  Award,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -94,6 +96,11 @@ export default function StatsPage() {
     common: language === 'es' ? 'Común' : 'Common',
     uncommon: language === 'es' ? 'Poco común' : 'Uncommon',
     rare: language === 'es' ? 'Raro' : 'Rare',
+    achievements: language === 'es' ? 'Logros' : 'Achievements',
+    viewAchievements:
+      language === 'es'
+        ? 'Ver todos los logros'
+        : 'View all achievements',
   };
 
   useEffect(() => {
@@ -343,6 +350,27 @@ export default function StatsPage() {
           <RarityRow label={t.common} count={stats.common} total={stats.total} />
           <RarityRow label={t.uncommon} count={stats.uncommon} total={stats.total} />
           <RarityRow label={t.rare} count={stats.rare} total={stats.total} />
+        </CardContent>
+      </Card>
+
+      <Card className="border-primary/40">
+        <CardContent className="p-6">
+          <Link
+            href="/badges"
+            className="flex items-center justify-between"
+          >
+            <div className="flex items-center gap-3">
+              <Award className="h-6 w-6 text-primary" />
+              <div>
+                <p className="font-semibold">{t.achievements}</p>
+                <p className="text-sm text-muted-foreground">
+                  {t.viewAchievements}
+                </p>
+              </div>
+            </div>
+
+            <span className="text-primary font-bold">→</span>
+          </Link>
         </CardContent>
       </Card>
     </div>
