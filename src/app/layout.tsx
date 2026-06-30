@@ -12,8 +12,19 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: 'DogExplorer',
-  description: 'Capture and collect dog breeds with AI!',
+  title: 'CanisQuest',
+  description: 'Discover, identify and collect dog breeds with AI.',
+
+  manifest: '/manifest.json',
+
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
+  },
+};
+
+export const viewport = {
+  themeColor: '#F6C338',
 };
 
 export default function RootLayout({
