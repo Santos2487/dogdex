@@ -21,7 +21,12 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 
-import { db } from '@/lib/firebase';
+import {
+  ref as storageRef,
+  deleteObject,
+} from 'firebase/storage';
+
+import { db, storage } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 
 import type { DogEntry } from '@/types';
@@ -151,6 +156,15 @@ export default function EntryPage() {
 
     if (!confirmed) return;
 
+    try {
+      if (entry.photoUrl) {
+        const imageRef = storageRef(storage, entry.photoUrl);
+        await deleteObject(imageRef);
+      }
+    } catch (error) {
+      console.warn('Could not delete image from Storage:', error);
+    }
+
     await deleteDoc(
       doc(db, 'users', user.uid, 'entries', entry.id)
     );
@@ -205,7 +219,6 @@ export default function EntryPage() {
       </Link>
 
       <Card className="overflow-hidden">
-        {/* IMAGE */}
         <div className="relative aspect-video w-full">
           <Image
             src={entry.photoUrl}
@@ -216,7 +229,6 @@ export default function EntryPage() {
         </div>
 
         <CardContent className="space-y-6 p-6">
-          {/* HEADER */}
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
               <h1 className="text-4xl font-bold leading-tight">
@@ -255,9 +267,7 @@ export default function EntryPage() {
             </div>
           </div>
 
-          {/* INFO GRID */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {/* DATE */}
             <div className="flex items-start gap-3 rounded-lg border p-4">
               <Calendar className="mt-1 h-5 w-5 text-primary" />
 
@@ -279,7 +289,6 @@ export default function EntryPage() {
               </div>
             </div>
 
-            {/* CONFIDENCE */}
             <div className="flex items-start gap-3 rounded-lg border p-4">
               <Percent className="mt-1 h-5 w-5 text-primary" />
 
@@ -294,7 +303,6 @@ export default function EntryPage() {
               </div>
             </div>
 
-            {/* RARITY */}
             <div className="flex items-start gap-3 rounded-lg border p-4">
               <Tag className="mt-1 h-5 w-5 text-primary" />
 
@@ -321,7 +329,6 @@ export default function EntryPage() {
               </div>
             </div>
 
-            {/* FAVORITE */}
             <div className="flex items-start gap-3 rounded-lg border p-4">
               <Heart className="mt-1 h-5 w-5 text-primary" />
 
@@ -337,7 +344,6 @@ export default function EntryPage() {
             </div>
           </div>
 
-          {/* NOTES */}
           {entry.notes && (
             <div>
               <h3 className="mb-2 text-lg font-semibold">
