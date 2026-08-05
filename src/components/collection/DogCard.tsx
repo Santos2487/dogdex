@@ -82,7 +82,7 @@ export default function DogCard({ entry }: Props) {
         <CardContent className="p-4">
           <h3 className="line-clamp-2 text-lg font-bold">
             {translatedBreed}
-            {entry.isMixed && ' (Mix)'}
+            {entry.isMixed && (language === 'es' ? ' (Mestizo)' : ' (Mix)')}
           </h3>
 
           {entry.name && (
