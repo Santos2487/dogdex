@@ -14,7 +14,13 @@ import { motion } from 'framer-motion';
 import useLanguageStore from '@/store/language-store';
 
 import { db, storage } from '@/lib/firebase';
-import { ref, uploadString, getDownloadURL } from 'firebase/storage';
+import {
+  ref,
+  uploadString,
+  getDownloadURL,
+  type StorageReference,
+} from 'firebase/storage';
+import { discardUploadedPhoto } from '@/lib/capture-photo';
 import {
   collection,
   doc,
@@ -121,6 +127,8 @@ export default function ReviewForm() {
 
     setIsSubmitting(true);
 
+    let uploadedPhotoRef: StorageReference | null = null;
+
     try {
       const entryId = uuidv4();
 
@@ -130,6 +138,7 @@ export default function ReviewForm() {
       );
 
       await uploadString(storageRef, photoDataUri, 'data_url');
+      uploadedPhotoRef = storageRef;
       const photoUrl = await getDownloadURL(storageRef);
 
       const entriesRef = collection(db, 'users', user.uid, 'entries');
@@ -283,6 +292,8 @@ export default function ReviewForm() {
 }
       });
 
+      uploadedPhotoRef = null;
+
       setRevealData({
         breed: data.breedName,
         rarity: finalRarity,
@@ -294,6 +305,11 @@ export default function ReviewForm() {
         },
       });
     } catch (e: any) {
+      // The entry was not saved, so don't leave its photo behind.
+      if (uploadedPhotoRef) {
+        await discardUploadedPhoto(uploadedPhotoRef);
+      }
+
       toast({
         variant: 'destructive',
         title: 'Error',
