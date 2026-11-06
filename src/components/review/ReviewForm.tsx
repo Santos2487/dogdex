@@ -320,7 +320,8 @@ export default function ReviewForm() {
           </div>
 
           <div className="text-2xl font-semibold">
-            {breed} {isMixed ? '(Mix)' : ''}
+            {breed}{' '}
+            {isMixed ? (language === 'es' ? '(Mestizo)' : '(Mix)') : ''}
           </div>
 
           <Badge>
