@@ -25,13 +25,11 @@ import {
   doc,
   setDoc,
   serverTimestamp,
-  collection,
-  writeBatch,
   onSnapshot,
   getDoc,
 } from 'firebase/firestore';
 
-import { initialAchievements } from '@/lib/data';
+import { ensureUserAchievements } from '@/lib/achievement-seeding';
 import type { UserProfile } from '@/types';
 
 interface AuthContextType {
@@ -49,41 +47,6 @@ const AuthContext = createContext<AuthContextType>({
   signInWithGoogle: async () => {},
   signOutUser: async () => {},
 });
-
-async function ensureUserAchievements(uid: string) {
-  const achievementsCollectionRef = collection(
-    db,
-    'users',
-    uid,
-    'achievements'
-  );
-
-  const batch = writeBatch(db);
-  let hasMissingAchievements = false;
-
-  for (const ach of initialAchievements) {
-    const achRef = doc(achievementsCollectionRef, ach.id);
-    const achSnap = await getDoc(achRef);
-
-    if (!achSnap.exists()) {
-      const initialAchData = {
-        ...ach,
-        unlocked: false,
-        progress: 0,
-        unlockedAt: null,
-      };
-
-      delete (initialAchData as any).icon;
-
-      batch.set(achRef, initialAchData);
-      hasMissingAchievements = true;
-    }
-  }
-
-  if (hasMissingAchievements) {
-    await batch.commit();
-  }
-}
 
 async function createUserProfile(uid: string, user?: User) {
   const userRef = doc(db, 'users', uid);
@@ -103,7 +66,7 @@ async function createUserProfile(uid: string, user?: User) {
     await setDoc(userRef, newUserProfile, { merge: true });
   }
 
-  await ensureUserAchievements(uid);
+  await ensureUserAchievements(db, uid);
 
   if (user && !user.isAnonymous) {
     await setDoc(
