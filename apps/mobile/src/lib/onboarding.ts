@@ -1,8 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 
-// Same key and value as the Next app's localStorage flag, so returning web users skip onboarding
-// (AsyncStorage on web is backed by localStorage with the raw key).
+// Same key and value as the web app's localStorage flag, for consistency.
 export const ONBOARDING_KEY = 'dogexplorer_onboarding_completed';
 
 type OnboardingState = {

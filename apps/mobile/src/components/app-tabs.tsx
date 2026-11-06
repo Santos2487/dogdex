@@ -3,7 +3,7 @@ import { NativeTabs } from 'expo-router/native-tabs';
 import { useT } from '@/lib/i18n';
 import { colors } from '@/theme';
 
-/** iOS/Android: native tab bar (liquid glass on iOS 26). Web uses app-tabs.web.tsx. */
+/** Native tab bar (liquid glass on iOS 26, Material on Android). */
 export default function AppTabs() {
   const { t } = useT();
   return (

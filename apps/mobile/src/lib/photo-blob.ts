@@ -1,5 +1,5 @@
 /**
- * Native: build a Blob from the local JPEG file via XMLHttpRequest. On Android the global
+ * Build a Blob from the local JPEG file via XMLHttpRequest. On Android the global
  * fetch(file://...) returned a 14-byte "File not found" body, and React Native's Blob can't
  * be constructed from an ArrayBuffer, so this is the reliable path for Firebase Storage.
  */

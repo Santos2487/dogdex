@@ -6,7 +6,7 @@ import { Text } from '@/components/ui/text';
 import { colors } from '@/theme';
 
 /** Bottom space so content clears the tab bar (native tabs inset themselves on iOS). */
-export const TAB_BAR_SPACE = process.env.EXPO_OS === 'web' ? 110 : 24;
+export const TAB_BAR_SPACE = 24;
 
 export function ScreenTitle({ icon: Icon, title }: { icon?: LucideIcon; title: string }) {
   return (
@@ -19,7 +19,7 @@ export function ScreenTitle({ icon: Icon, title }: { icon?: LucideIcon; title: s
   );
 }
 
-/** Scrollable tab screen with safe-area handling and a max content width for web/tablets. */
+/** Scrollable tab screen with safe-area handling and a max content width for tablets. */
 export function Screen({
   children,
   inTabs = true,

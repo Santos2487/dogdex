@@ -18,15 +18,6 @@
       },
       "predictiveBackGestureEnabled": false
     },
-    "web": {
-      "output": "server",
-      "favicon": "./assets/images/favicon.png",
-      "name": "CanisQuest",
-      "shortName": "CanisQuest",
-      "description": "Discover, identify and collect dog breeds with AI.",
-      "themeColor": "#FFC72C",
-      "backgroundColor": "#0A0A0A"
-    },
     "plugins": [
       "expo-router",
       [

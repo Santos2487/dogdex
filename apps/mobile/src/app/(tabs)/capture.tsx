@@ -30,7 +30,7 @@ export default function CaptureScreen() {
       const message = e instanceof PermissionDeniedError ? t.capture.cameraDenied : t.capture.readError;
       console.warn('capture failed', e);
       setError(message);
-      if (process.env.EXPO_OS !== 'web') Alert.alert(t.common.error, message);
+      Alert.alert(t.common.error, message);
     } finally {
       setBusy(false);
     }

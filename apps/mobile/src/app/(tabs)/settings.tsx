@@ -1,4 +1,4 @@
-import { BadgeCheck, Languages, LogIn, LogOut, Settings, User as UserIcon } from 'lucide-react-native';
+import { BadgeCheck, Languages, LogOut, Settings, User as UserIcon } from 'lucide-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, TextInput, View } from 'react-native';
 
@@ -17,24 +17,12 @@ type Notice = { kind: 'error' | 'success'; title: string; description?: string }
 export default function SettingsScreen() {
   const { t } = useT();
   const { language, setLanguage } = useLanguageStore();
-  const { user, userData, loading, canUseGoogle, signInWithGoogle, signOutUser } = useAuth();
+  const { user, userData, loading, signOutUser } = useAuth();
   const [authBusy, setAuthBusy] = useState(false);
   const [name, setName] = useState('');
   const [nameBusy, setNameBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
   const isAnonymous = user?.isAnonymous ?? true;
-
-  async function onGoogle() {
-    setNotice(null);
-    setAuthBusy(true);
-    try {
-      await signInWithGoogle();
-    } catch (e) {
-      setNotice({ kind: 'error', title: t.settings.loginFailed, description: (e as Error).message });
-    } finally {
-      setAuthBusy(false);
-    }
-  }
 
   async function onSignOut() {
     setAuthBusy(true);
@@ -143,13 +131,9 @@ export default function SettingsScreen() {
           </View>
         ) : null}
 
-        {!loading && isAnonymous ? (
-          canUseGoogle ? (
-            <Button testID="google-sign-in" icon={LogIn} loading={authBusy} title={authBusy ? t.settings.connecting : t.settings.continueWithGoogle} onPress={onGoogle} />
-          ) : (
-            <Text variant="muted">{t.settings.googleUnavailable}</Text>
-          )
-        ) : null}
+        {/* Google sign-in (to keep a guest collection across devices) needs native OAuth setup;
+            see increment 11 in docs/expo-migration-plan.md. */}
+        {!loading && isAnonymous ? <Text variant="muted">{t.settings.googleUnavailable}</Text> : null}
         {!loading && !isAnonymous ? (
           <Button variant="outline" icon={LogOut} loading={authBusy} title={authBusy ? t.settings.signingOut : t.settings.signOut} onPress={onSignOut} />
         ) : null}

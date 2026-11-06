@@ -1,13 +1,4 @@
-import {
-  GoogleAuthProvider,
-  linkWithPopup,
-  onAuthStateChanged,
-  signInAnonymously,
-  signInWithCredential,
-  signInWithPopup,
-  signOut,
-  type User,
-} from 'firebase/auth';
+import { onAuthStateChanged, signInAnonymously, signOut, type User } from 'firebase/auth';
 import { doc, getDoc, onSnapshot, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
 import { createContext, use, useEffect, useState, type ReactNode } from 'react';
 
@@ -20,13 +11,17 @@ type AuthState = {
   userData: UserProfile | null;
   loading: boolean;
   error: string | null;
-  /** Web only for now: native Google sign-in needs OAuth client IDs (see migration plan). */
-  canUseGoogle: boolean;
-  signInWithGoogle: () => Promise<void>;
   signOutUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
+
+const DEAD_SESSION_CODES = new Set([
+  'auth/invalid-refresh-token',
+  'auth/user-token-expired',
+  'auth/user-disabled',
+  'auth/user-not-found',
+]);
 
 async function ensureUserAchievements(uid: string) {
   const batch = writeBatch(db);
@@ -78,9 +73,6 @@ async function createUserProfile(user: User) {
   }
 }
 
-const googleProvider = new GoogleAuthProvider();
-googleProvider.setCustomParameters({ prompt: 'select_account' });
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<UserProfile | null>(null);
@@ -98,6 +90,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUserData(null);
           await signInAnonymously(auth); // fires onAuthStateChanged again
           return;
+        }
+        try {
+          // Fails fast if the persisted session is dead (user deleted/disabled, or the auth
+          // emulator was reset); otherwise Firestore just reports "client is offline".
+          await current.getIdToken();
+        } catch (e) {
+          if (DEAD_SESSION_CODES.has((e as { code?: string }).code ?? '')) {
+            console.warn('Stored session is no longer valid; starting a new guest session.');
+            await signOut(auth); // fires onAuthStateChanged(null) -> anonymous sign-in
+            return;
+          }
+          throw e;
         }
         await createUserProfile(current);
         unsubscribeProfile = onSnapshot(
@@ -124,30 +128,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const canUseGoogle = process.env.EXPO_OS === 'web';
-
-  async function signInWithGoogle() {
-    if (!canUseGoogle) throw new Error('Google sign-in is not available in the app yet.');
-    const current = auth.currentUser;
-    if (current?.isAnonymous) {
-      try {
-        const result = await linkWithPopup(current, googleProvider);
-        await createUserProfile(result.user);
-        return;
-      } catch (e: any) {
-        if (e?.code !== 'auth/credential-already-in-use') throw e;
-        const credential = GoogleAuthProvider.credentialFromError(e);
-        if (credential) {
-          const result = await signInWithCredential(auth, credential);
-          await createUserProfile(result.user);
-          return;
-        }
-      }
-    }
-    const result = await signInWithPopup(auth, googleProvider);
-    await createUserProfile(result.user);
-  }
-
   async function signOutUser() {
     setUserData(null);
     setUser(null);
@@ -155,7 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext value={{ user, userData, loading, error, canUseGoogle, signInWithGoogle, signOutUser }}>
+    <AuthContext value={{ user, userData, loading, error, signOutUser }}>
       {children}
     </AuthContext>
   );

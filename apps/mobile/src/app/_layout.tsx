@@ -7,7 +7,6 @@ import { useEffect } from 'react';
 import { View } from 'react-native';
 
 import { Text } from '@/components/ui/text';
-import { WebHead } from '@/components/web-head';
 import { AuthProvider } from '@/lib/auth';
 import { isFirebaseConfigured } from '@/lib/firebase-env';
 import { useT } from '@/lib/i18n';
@@ -48,12 +47,10 @@ export default function RootLayout() {
     if (fontsLoaded || fontError) SplashScreen.hideAsync();
   }, [fontsLoaded, fontError]);
 
-  // WebHead renders before the font gate so the PWA tags are in the server-rendered HTML.
-  if (!fontsLoaded && !fontError) return <WebHead />;
+  if (!fontsLoaded && !fontError) return null;
 
   return (
     <ThemeProvider value={theme}>
-      <WebHead />
       <StatusBar style="light" />
       {!isFirebaseConfigured ? (
         <MissingConfig />

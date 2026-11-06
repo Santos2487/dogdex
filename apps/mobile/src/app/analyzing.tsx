@@ -40,9 +40,7 @@ export default function AnalyzingScreen() {
       .catch((e) => {
         console.warn('AI analysis failed:', e);
         setError(t.analyzing.failedDescription);
-        if (process.env.EXPO_OS !== 'web') {
-          Alert.alert(t.analyzing.failedTitle, t.analyzing.failedDescription, [{ text: 'OK', onPress: () => router.back() }]);
-        }
+        Alert.alert(t.analyzing.failedTitle, t.analyzing.failedDescription, [{ text: 'OK', onPress: () => router.back() }]);
       });
   }, [photoBase64, router, setResult, t]);
 

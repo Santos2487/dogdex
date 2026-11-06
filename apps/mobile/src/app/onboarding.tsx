@@ -13,7 +13,7 @@ import { colors } from '@/theme';
 
 const ICONS: LucideIcon[] = [PawPrint, Camera, Award];
 
-/** Three-step pager replacing the Embla carousel of the Next app. */
+/** Three-step pager replacing the Embla carousel of the web app. */
 export default function OnboardingScreen() {
   const router = useRouter();
   const { t } = useT();
@@ -49,16 +49,7 @@ export default function OnboardingScreen() {
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={(e) => setPage(Math.round(e.nativeEvent.contentOffset.x / pageWidth))}
-          onScroll={(e) => {
-            // Web has no momentum-end event; only sync once the scroll settles exactly on a page,
-            // otherwise mid-animation offsets fight the Next button.
-            const x = e.nativeEvent.contentOffset.x;
-            if (process.env.EXPO_OS === 'web' && Math.abs(x / pageWidth - Math.round(x / pageWidth)) < 0.01) {
-              setPage(Math.round(x / pageWidth));
-            }
-          }}
-          scrollEventThrottle={64}>
+          onMomentumScrollEnd={(e) => setPage(Math.round(e.nativeEvent.contentOffset.x / pageWidth))}>
           {steps.map((step, i) => {
             const Icon = ICONS[i];
             return (
