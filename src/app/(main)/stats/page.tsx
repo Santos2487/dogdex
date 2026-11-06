@@ -78,6 +78,8 @@ export default function StatsPage() {
   const t = {
     title: language === 'es' ? 'Mis estadísticas' : 'My Stats',
     trainer: language === 'es' ? 'Coleccionista CanisQuest' : 'CanisQuest Collector',
+    collectorFallback: language === 'es' ? 'Coleccionista' : 'Collector',
+    of: language === 'es' ? 'de' : 'of',
     memberSince: language === 'es' ? 'Miembro desde' : 'Member since',
     level: language === 'es' ? 'Nivel' : 'Level',
     explorer: language === 'es' ? 'Explorador' : 'Explorer',
@@ -211,7 +213,7 @@ export default function StatsPage() {
               <div>
                 <p className="text-sm text-muted-foreground">{t.trainer}</p>
                 <h2 className="text-3xl font-bold">
-                  {userData.trainerName || user.displayName || user.email || 'Trainer'}
+                  {userData.trainerName || user.displayName || user.email || t.collectorFallback}
                 </h2>
               </div>
             </div>
@@ -292,14 +294,14 @@ export default function StatsPage() {
         <StatCard
           title={t.favorites}
           value={`${stats.favoritePercent}%`}
-          subtitle={`${stats.favorites} of ${stats.total} ${t.captures}`}
+          subtitle={`${stats.favorites} ${t.of} ${stats.total} ${t.captures}`}
           icon={Heart}
         />
 
         <StatCard
           title={t.mixedCaptures}
           value={`${stats.mixedPercent}%`}
-          subtitle={`${stats.mixed} of ${stats.total} ${t.captures}`}
+          subtitle={`${stats.mixed} ${t.of} ${stats.total} ${t.captures}`}
           icon={Sparkles}
         />
       </div>

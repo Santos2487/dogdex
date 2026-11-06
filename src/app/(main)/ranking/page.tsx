@@ -44,9 +44,11 @@ type PublicProfile = {
 function RankingList({
   users,
   valueKey,
+  levelLabel,
 }: {
   users: PublicProfile[];
   valueKey: keyof PublicProfile;
+  levelLabel: string;
 }) {
   const sorted = [...users].sort(
     (a, b) =>
@@ -73,7 +75,7 @@ function RankingList({
                 </p>
 
                 <p className="text-sm text-muted-foreground">
-                  Nivel {user.level}
+                  {levelLabel} {user.level}
                 </p>
               </div>
             </div>
@@ -118,6 +120,8 @@ export default function RankingPage() {
 
     xp: language === 'es' ? 'XP' : 'XP',
 
+    level: language === 'es' ? 'Nivel' : 'Level',
+
     captures:
       language === 'es'
         ? 'Capturas'
@@ -159,6 +163,7 @@ export default function RankingPage() {
 
         <TabsContent value="xp" className="mt-4">
           <RankingList
+            levelLabel={t.level}
             users={users}
             valueKey="xp"
           />
@@ -166,6 +171,7 @@ export default function RankingPage() {
 
         <TabsContent value="captures" className="mt-4">
           <RankingList
+            levelLabel={t.level}
             users={users}
             valueKey="totalCaptures"
           />
@@ -173,6 +179,7 @@ export default function RankingPage() {
 
         <TabsContent value="breeds" className="mt-4">
           <RankingList
+            levelLabel={t.level}
             users={users}
             valueKey="uniqueBreedsCount"
           />
