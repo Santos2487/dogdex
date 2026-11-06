@@ -13,11 +13,13 @@ import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage
 
 import type { Rarity } from '@/lib/data';
 import { db, storage } from '@/lib/firebase';
+import { photoBlob } from '@/lib/photo-blob';
 import { computeCaptureProgress } from '@/lib/progression';
 import type { AchievementDoc } from '@/types';
 
 export type CaptureInput = {
-  photoUri: string;
+  /** Output of preparePhoto: local JPEG uri plus the same bytes as base64. */
+  photo: { uri: string; base64: string };
   breedName: string;
   name?: string;
   notes?: string;
@@ -39,11 +41,13 @@ export async function saveCapture(uid: string, input: CaptureInput): Promise<Sav
   const entryRef = doc(entriesRef);
   const entryId = entryRef.id;
 
-  // fetch(uri).blob() works for file://, blob: and data: URIs on native and web;
-  // uploadString(data_url) is unreliable on React Native.
-  const blob = await (await fetch(input.photoUri)).blob();
+  const blob = await photoBlob(input.photo);
   const photoRef = ref(storage, `users/${uid}/entries/${entryId}.jpg`);
-  await uploadBytes(photoRef, blob, { contentType: 'image/jpeg' });
+  const upload = await uploadBytes(photoRef, blob, { contentType: 'image/jpeg' });
+  // Guard against silently storing a bad body (seen on Android with fetch(file://)).
+  if (!blob.size || upload.metadata.size !== blob.size || blob.size < 100) {
+    throw new Error(`Photo upload failed (${upload.metadata.size}/${blob.size} bytes)`);
+  }
   const photoUrl = await getDownloadURL(photoRef);
 
   // Queries can't run inside client transactions; same approach as the web app.

@@ -44,7 +44,8 @@
           "cameraPermission": "CanisQuest uses the camera to photograph dogs and identify their breed."
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,

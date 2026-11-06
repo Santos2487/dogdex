@@ -68,12 +68,12 @@ export default function ReviewScreen() {
   async function onSave() {
     const breed = breedName.trim();
     if (!breed) return setError(t.review.breedRequired);
-    if (!user || !capture.photoUri || capture.confidence === null) return;
+    if (!user || !capture.photoUri || !capture.photoBase64 || capture.confidence === null) return;
     setSaving(true);
     setError(null);
     try {
       const result = await saveCapture(user.uid, {
-        photoUri: capture.photoUri,
+        photo: { uri: capture.photoUri, base64: capture.photoBase64 },
         breedName: breed,
         name: name.trim(),
         notes: notes.trim(),
