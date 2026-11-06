@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Camera, FileImage, Loader2 } from 'lucide-react';
 import useLanguageStore from '@/store/language-store';
+import { preparePhoto, PhotoTooLargeError } from '@/lib/resize-image';
 
 export default function ImageUploader() {
   const router = useRouter();
@@ -28,6 +29,10 @@ export default function ImageUploader() {
       language === 'es'
         ? 'No se pudo leer la imagen.'
         : 'Failed to read the image file.',
+    tooLargeDescription:
+      language === 'es'
+        ? 'La foto es demasiado grande. Prueba con otra.'
+        : 'This photo is too large. Please try another one.',
     preparing:
       language === 'es'
         ? 'Preparando tu foto...'
@@ -40,7 +45,7 @@ export default function ImageUploader() {
         : 'High-quality, well-lit photos work best!',
   };
 
-  const processFile = (file: File) => {
+  const processFile = async (file: File) => {
     if (!file.type.startsWith('image/')) {
       toast({
         variant: 'destructive',
@@ -52,28 +57,28 @@ export default function ImageUploader() {
 
     setIsLoading(true);
 
-    const reader = new FileReader();
-
-    reader.onload = (e) => {
-      const dataUri = e.target?.result as string;
+    try {
+      // Downscale before analysing: full-size photos exceed the server
+      // action's 1 MB body limit (see #4).
+      const dataUri = await preparePhoto(file);
 
       clearCaptureData();
 
       setCaptureData({ photoDataUri: dataUri });
 
       router.push('/analyzing');
-    };
-
-    reader.onerror = () => {
+    } catch (error) {
+      console.error('Could not prepare photo:', error);
       setIsLoading(false);
       toast({
         variant: 'destructive',
         title: t.errorTitle,
-        description: t.readErrorDescription,
+        description:
+          error instanceof PhotoTooLargeError
+            ? t.tooLargeDescription
+            : t.readErrorDescription,
       });
-    };
-
-    reader.readAsDataURL(file);
+    }
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
