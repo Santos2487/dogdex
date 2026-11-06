@@ -1,0 +1,303 @@
+// Ported from the Next app (src/lib/data.ts).
+
+export const dogBreeds = [
+  "Labrador Retriever", "German Shepherd", "Golden Retriever", "French Bulldog",
+  "Bulldog", "Poodle", "Beagle", "Rottweiler", "German Shorthaired Pointer",
+  "Dachshund", "Pembroke Welsh Corgi", "Australian Shepherd", "Yorkshire Terrier",
+  "Siberian Husky", "Boxer", "Great Dane", "Pomeranian", "Doberman Pinscher",
+  "Shih Tzu", "Shetland Sheepdog", "Boston Terrier", "Bernese Mountain Dog",
+  "Havanese", "Cane Corso", "Maltese", "Chihuahua", "Border Collie",
+  "Basset Hound", "Shiba Inu", "Akita"
+].sort();
+
+export const rarities = ['Common', 'Uncommon', 'Rare'] as const;
+export type Rarity = (typeof rarities)[number];
+
+export const breedRarityMap: Record<string, Rarity> = {
+  "Labrador Retriever": "Common",
+  "Golden Retriever": "Common",
+  "German Shepherd": "Common",
+  "French Bulldog": "Common",
+  "Bulldog": "Common",
+  "Poodle": "Common",
+  "Beagle": "Common",
+  "Chihuahua": "Common",
+  "Yorkshire Terrier": "Common",
+  "Dachshund": "Common",
+
+  "Rottweiler": "Uncommon",
+  "German Shorthaired Pointer": "Uncommon",
+  "Pembroke Welsh Corgi": "Uncommon",
+  "Australian Shepherd": "Uncommon",
+  "Siberian Husky": "Uncommon",
+  "Boxer": "Uncommon",
+  "Great Dane": "Uncommon",
+  "Pomeranian": "Uncommon",
+  "Doberman Pinscher": "Uncommon",
+  "Shih Tzu": "Uncommon",
+  "Boston Terrier": "Uncommon",
+  "Maltese": "Uncommon",
+  "Border Collie": "Uncommon",
+  "Basset Hound": "Uncommon",
+
+  "Shetland Sheepdog": "Rare",
+  "Bernese Mountain Dog": "Rare",
+  "Havanese": "Rare",
+  "Cane Corso": "Rare",
+  "Shiba Inu": "Rare",
+  "Akita": "Rare",
+};
+
+export function getRarityFromBreed(breedName: string): Rarity {
+  return breedRarityMap[breedName] || "Common";
+}
+
+export type Language = 'en' | 'es';
+export type LocalizedText = Record<Language, string>;
+
+export type AchievementMetric =
+  | 'totalCaptures'
+  | 'uniqueBreedsCount'
+  | 'uncommonCaptures'
+  | 'rareCaptures';
+
+export type AchievementIcon = 'bone' | 'award' | 'target' | 'star' | 'gem';
+
+export type InitialAchievement = {
+  id: string;
+  title: LocalizedText;
+  description: LocalizedText;
+  target: number;
+  metric: AchievementMetric;
+  icon: AchievementIcon;
+};
+
+export const initialAchievements: InitialAchievement[] = [
+  {
+    id: 'first-capture',
+    title: {
+      en: 'First Capture!',
+      es: '¡Primera captura!',
+    },
+    description: {
+      en: "You've collected your first dog.",
+      es: 'Has coleccionado tu primer perro.',
+    },
+    target: 1,
+    metric: 'totalCaptures',
+    icon: 'bone',
+  },
+  {
+    id: 'ten-captures',
+    title: {
+      en: 'Dog Spotter',
+      es: 'Avistador canino',
+    },
+    description: {
+      en: 'Capture 10 dogs.',
+      es: 'Captura 10 perros.',
+    },
+    target: 10,
+    metric: 'totalCaptures',
+    icon: 'bone',
+  },
+  {
+    id: 'twenty-five-captures',
+    title: {
+      en: 'Urban Tracker',
+      es: 'Rastreador urbano',
+    },
+    description: {
+      en: 'Capture 25 dogs.',
+      es: 'Captura 25 perros.',
+    },
+    target: 25,
+    metric: 'totalCaptures',
+    icon: 'award',
+  },
+  {
+    id: 'fifty-captures',
+    title: {
+      en: 'CanisQuest Veteran',
+      es: 'Veterano CanisQuest',
+    },
+    description: {
+      en: 'Capture 50 dogs.',
+      es: 'Captura 50 perros.',
+    },
+    target: 50,
+    metric: 'totalCaptures',
+    icon: 'award',
+  },
+  {
+    id: 'hundred-captures',
+    title: {
+      en: 'Legendary Tracker',
+      es: 'Rastreador legendario',
+    },
+    description: {
+      en: 'Capture 100 dogs.',
+      es: 'Captura 100 perros.',
+    },
+    target: 100,
+    metric: 'totalCaptures',
+    icon: 'award',
+  },
+  {
+    id: 'five-unique',
+    title: {
+      en: 'Pack Starter',
+      es: 'Inicio de manada',
+    },
+    description: {
+      en: 'Collect 5 unique dog breeds.',
+      es: 'Colecciona 5 razas de perro únicas.',
+    },
+    target: 5,
+    metric: 'uniqueBreedsCount',
+    icon: 'target',
+  },
+  {
+    id: 'ten-unique',
+    title: {
+      en: 'Breed Enthusiast',
+      es: 'Entusiasta de razas',
+    },
+    description: {
+      en: 'Collect 10 unique dog breeds.',
+      es: 'Colecciona 10 razas de perro únicas.',
+    },
+    target: 10,
+    metric: 'uniqueBreedsCount',
+    icon: 'target',
+  },
+  {
+    id: 'twenty-unique',
+    title: {
+      en: 'Breed Expert',
+      es: 'Experto en razas',
+    },
+    description: {
+      en: 'Collect 20 unique dog breeds.',
+      es: 'Colecciona 20 razas de perro únicas.',
+    },
+    target: 20,
+    metric: 'uniqueBreedsCount',
+    icon: 'award',
+  },
+  {
+    id: 'fifty-unique',
+    title: {
+      en: 'CanisQuest Master',
+      es: 'Maestro CanisQuest',
+    },
+    description: {
+      en: 'Collect 50 unique dog breeds.',
+      es: 'Colecciona 50 razas de perro únicas.',
+    },
+    target: 50,
+    metric: 'uniqueBreedsCount',
+    icon: 'award',
+  },
+  {
+    id: 'first-uncommon',
+    title: {
+      en: 'Uncommon Find',
+      es: 'Hallazgo poco común',
+    },
+    description: {
+      en: 'Capture your first uncommon dog.',
+      es: 'Captura tu primer perro poco común.',
+    },
+    target: 1,
+    metric: 'uncommonCaptures',
+    icon: 'star',
+  },
+  {
+    id: 'five-uncommon',
+    title: {
+      en: 'Uncommon Hunter',
+      es: 'Cazador de poco comunes',
+    },
+    description: {
+      en: 'Capture 5 uncommon dogs.',
+      es: 'Captura 5 perros poco comunes.',
+    },
+    target: 5,
+    metric: 'uncommonCaptures',
+    icon: 'gem',
+  },
+  {
+    id: 'ten-uncommon',
+    title: {
+      en: 'Uncommon Expert',
+      es: 'Experto en poco comunes',
+    },
+    description: {
+      en: 'Capture 10 uncommon dogs.',
+      es: 'Captura 10 perros poco comunes.',
+    },
+    target: 10,
+    metric: 'uncommonCaptures',
+    icon: 'gem',
+  },
+  {
+    id: 'first-rare',
+    title: {
+      en: 'Lucky Find',
+      es: 'Hallazgo afortunado',
+    },
+    description: {
+      en: 'Capture your first rare dog.',
+      es: 'Captura tu primer perro raro.',
+    },
+    target: 1,
+    metric: 'rareCaptures',
+    icon: 'star',
+  },
+  {
+    id: 'five-rare',
+    title: {
+      en: 'Gem Hunter',
+      es: 'Cazador de joyas',
+    },
+    description: {
+      en: 'Capture 5 rare dogs.',
+      es: 'Captura 5 perros raros.',
+    },
+    target: 5,
+    metric: 'rareCaptures',
+    icon: 'gem',
+  },
+  {
+    id: 'ten-rare',
+    title: {
+      en: 'Rare Specialist',
+      es: 'Especialista en rarezas',
+    },
+    description: {
+      en: 'Capture 10 rare dogs.',
+      es: 'Captura 10 perros raros.',
+    },
+    target: 10,
+    metric: 'rareCaptures',
+    icon: 'gem',
+  },
+];
+
+export const getLevelFromXp = (xp: number) => {
+  let level = 1;
+  let requiredXp = 10;
+
+  while (xp >= requiredXp) {
+    xp -= requiredXp;
+    level++;
+    requiredXp = 10 * level;
+  }
+
+  return {
+    level,
+    progress: xp,
+    requiredXpForNextLevel: requiredXp,
+  };
+};

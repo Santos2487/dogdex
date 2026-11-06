@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "CanisQuest",
+    "slug": "canisquest",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "canisquest",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0C0A09",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0A0A0A",
+        "foregroundImage": "./assets/images/icon.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "server",
+      "favicon": "./assets/images/favicon.png",
+      "name": "CanisQuest",
+      "shortName": "CanisQuest",
+      "description": "Discover, identify and collect dog breeds with AI.",
+      "themeColor": "#FFC72C",
+      "backgroundColor": "#0A0A0A"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0A0A0A",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 160
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "CanisQuest needs your photos so you can pick a dog to identify.",
+          "cameraPermission": "CanisQuest uses the camera to photograph dogs and identify their breed."
+        }
+      ],
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
