@@ -21,12 +21,9 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 
-import {
-  ref as storageRef,
-  deleteObject,
-} from 'firebase/storage';
-
 import { db, storage } from '@/lib/firebase';
+import { deleteCapturePhoto } from '@/lib/capture-photo';
+import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 
 import type { DogEntry } from '@/types';
@@ -51,6 +48,7 @@ export default function EntryPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { language } = useLanguageStore();
+  const { toast } = useToast();
 
   const [entry, setEntry] = useState<DogEntry | null>(null);
   const [loading, setLoading] = useState(true);
@@ -157,17 +155,29 @@ export default function EntryPage() {
     if (!confirmed) return;
 
     try {
-      if (entry.photoUrl) {
-        const imageRef = storageRef(storage, entry.photoUrl);
-        await deleteObject(imageRef);
-      }
-    } catch (error) {
-      console.warn('Could not delete image from Storage:', error);
-    }
+      // Photo first: if it can't be removed, keep the entry so the user can
+      // retry, rather than leaving an unreachable photo behind in Storage.
+      await deleteCapturePhoto(storage, entry.photoUrl);
 
-    await deleteDoc(
-      doc(db, 'users', user.uid, 'entries', entry.id)
-    );
+      await deleteDoc(
+        doc(db, 'users', user.uid, 'entries', entry.id)
+      );
+    } catch (error) {
+      console.error('Could not delete capture:', error);
+
+      toast({
+        variant: 'destructive',
+        title:
+          language === 'es'
+            ? 'No se pudo eliminar'
+            : 'Could not delete',
+        description:
+          language === 'es'
+            ? 'Revisa tu conexión e inténtalo de nuevo.'
+            : 'Check your connection and try again.',
+      });
+      return;
+    }
 
     router.push('/collection');
   };
