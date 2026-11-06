@@ -9,13 +9,14 @@ import {
   Medal,
 } from 'lucide-react';
 
-import {
-  collection,
-  onSnapshot,
-  query,
-} from 'firebase/firestore';
+import { onSnapshot } from 'firebase/firestore';
 
 import { db } from '@/lib/firebase';
+import {
+  rankingFields,
+  rankingQuery,
+  type RankingTab,
+} from '@/lib/ranking';
 import useLanguageStore from '@/store/language-store';
 
 import {
@@ -94,9 +95,12 @@ export default function RankingPage() {
   const { language } = useLanguageStore();
 
   const [users, setUsers] = useState<PublicProfile[]>([]);
+  const [tab, setTab] = useState<RankingTab>('xp');
+  const field = rankingFields[tab];
 
   useEffect(() => {
-    const q = query(collection(db, 'publicProfiles'));
+    // Only the top profiles for the active tab, not the whole collection (#12).
+    const q = rankingQuery(db, field);
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map((doc) => ({
@@ -108,7 +112,7 @@ export default function RankingPage() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [field]);
 
   const t = {
     title:
@@ -139,7 +143,10 @@ export default function RankingPage() {
         </h1>
       </div>
 
-      <Tabs defaultValue="xp">
+      <Tabs
+        value={tab}
+        onValueChange={(value) => setTab(value as RankingTab)}
+      >
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="xp">
             <Star className="mr-2 h-4 w-4" />
