@@ -211,7 +211,7 @@ export default function StatsPage() {
               <div>
                 <p className="text-sm text-muted-foreground">{t.trainer}</p>
                 <h2 className="text-3xl font-bold">
-                  {userData.trainerName || user.displayName || user.email || 'Trainer'}
+                  {userData.trainerName || user?.displayName || user?.email || 'Trainer'}
                 </h2>
               </div>
             </div>

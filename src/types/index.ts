@@ -11,6 +11,7 @@ export type DogEntry = {
   notes?: string;
   favorite: boolean;
   rarity: Rarity;
+  isMixed?: boolean;
   location?: { lat: number; lng: number };
   aiProvider: string;
   aiCandidates?: string[];

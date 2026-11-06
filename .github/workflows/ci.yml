@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Next.js (typecheck, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Blocking typecheck. Temporary exception: src/ai/flows/identify-dog-breed-from-image.ts
+      # has one known error that PR #1 (expo-migration) fixes by rewriting the file.
+      # Remove the exception when PR #1 lands (issue #16), then just run `npm run typecheck`.
+      - name: Typecheck
+        run: |
+          npx tsc --noEmit --pretty false > tsc.log || true
+          cat tsc.log
+          ALLOWED='^src/ai/flows/identify-dog-breed-from-image\.ts\('
+          if grep -E '^[^ ].*error TS[0-9]+' tsc.log | grep -Ev "$ALLOWED"; then
+            echo "::error::TypeScript errors found (see above)"
+            exit 1
+          fi
+          echo "Typecheck OK (known exceptions: $(grep -Ec "$ALLOWED" tsc.log || true))"
+
+      # Lint is not run yet: `next lint` has no ESLint config and prompts interactively (issue #15).
+
+      # No secrets: src/lib/firebase.ts falls back to placeholder config at build time.
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+
+  # TODO when PR #1 lands: add an `apps/mobile` job (npm ci, tsc, jest, expo-doctor)
+  # and run the root `npm test` (vitest) here.

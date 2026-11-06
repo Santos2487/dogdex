@@ -206,7 +206,7 @@ export default function EntryPage() {
   const capturedDate =
     typeof entry.capturedAt?.toDate === 'function'
       ? entry.capturedAt.toDate()
-      : new Date(entry.capturedAt);
+      : new Date(entry.capturedAt as unknown as string | number | Date);
 
   return (
     <div className="container mx-auto max-w-2xl p-4">
