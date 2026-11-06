@@ -1,10 +1,10 @@
-# CanisQuest: migration from Next.js to Expo
+# CanisQuest: native iOS and Android apps with Expo
 
 Status legend: `[x]` done, `[~]` partly done, `[ ]` not started.
 
 Target: **Expo SDK 58** (React Native 0.88, React 19.3, Expo Router 58, Node >= 22.13). I checked `npm view expo dist-tags` (`latest` = 58.0.23) and https://docs.expo.dev/versions/latest/ on 2026-11-06.
 
-## 1. Inventory of the current app
+## 1. Inventory of the current (Next.js) app
 
 ### Stack
 - Next.js 15.5 (app router, turbopack), React 19.2, Tailwind 3 with shadcn/Radix UI, framer-motion, lucide-react, zustand, react-hook-form with zod.
@@ -44,219 +44,179 @@ Target: **Expo SDK 58** (React Native 0.88, React 19.3, Expo Router 58, Node >= 
 - Gemini 2.5 Flash through Genkit, on the server only, using `GEMINI_API_KEY`.
 - Vercel Analytics and Firebase App Hosting.
 
-## 2. Requirements
+## 2. Requirements (revised 2026-11-06)
 
-- **One codebase for Android, iOS and web.** Web is not optional, because existing users of the current site must keep using it.
-- **The Expo web build replaces the Next.js site** at the same domain, on the same Firebase project, with the same users, auth sessions and captures. There is no data migration.
-- **The PWA stays installable:** same manifest, icons and theme colour.
-- **The Next app stays live** until the Expo web build reaches parity.
+- **The Next.js site stays the web app.** It keeps its UI, server actions and Firebase App Hosting deploy. There is no Expo web build and no web cut-over.
+- **The Expo app targets iOS and Android only.**
+- **One Firebase project** (Auth, Firestore, Storage) for both apps. Both read and write the same documents, so a capture made on a phone shows up on the web for the same account, and vice versa.
+- **The phones call a Next.js route handler** for Gemini (`POST /api/identify`). The Gemini key never ships in the app.
 
-## 3. Target architecture and decisions
+## 3. Architecture
 
-### Structure: a new app in `apps/mobile`, with Next left in place
-- **Decision:** a standalone Expo app in `apps/mobile`, with its own `package.json` and `package-lock.json`. There are no npm workspaces.
-- **Why:** the Next app keeps building and deploying from the repo root, untouched, until parity. Two separate dependency trees avoid React and React Native hoisting clashes: Next is on React 19.2 and Expo 58 pins React 19.3.
-- **Root change:** the only change outside `apps/mobile` is that the root `tsconfig.json` excludes `apps/`, so the Next typecheck ignores the RN code.
-- **At cut-over:** delete the Next code. Then either move `apps/mobile` to the root or keep the monorepo layout.
-- **Copied, not shared:** pure logic (levels, achievements, rarity, breed translations) was **copied** into `apps/mobile/src/lib`, because the Next copy will be deleted.
+```
+            Firebase project (Auth, Firestore, Storage)
+              ▲                                   ▲
+   JS SDK     │                                   │   JS SDK (native: AsyncStorage persistence)
+              │                                   │
+  Next.js app (repo root)                 Expo app (apps/mobile), iOS + Android
+  - web UI + server actions (unchanged)   - Expo Router, NativeTabs
+  - POST /api/identify  ◀──── HTTPS, Bearer Firebase ID token ────
+      └─ Genkit prompt → Gemini 2.5 Flash (GEMINI_API_KEY, server only)
+  Deployed on Firebase App Hosting
+```
 
-### Firebase: the JS SDK on all three platforms
-- **Decision:** `firebase` JS SDK v13 on iOS, Android and web, not `@react-native-firebase`.
-- **Why:**
-  - It is the only option that runs unchanged on web, which is now a hard requirement.
-  - It works in Expo Go with no native build.
-  - The current code uses the same API, so queries and transactions port almost line for line.
-  - It needs no `GoogleService-Info.plist` or `google-services.json`.
-- **Platform splits, kept to a minimum:**
-  - `lib/firebase-auth.ts` (native) uses `initializeAuth` with `getReactNativePersistence(AsyncStorage)`. `lib/firebase-auth.web.ts` uses `getAuth`, which defaults to IndexedDB, exactly as the Next app does.
-  - `lib/photo-blob.ts` (native) builds the upload Blob with XHR from the local file. `lib/photo-blob.web.ts` builds it from the bytes.
-  - Two things fail on React Native:
-    - `fetch(file://).blob()` silently produced a 14-byte "File not found" body on Android.
-    - RN's Blob can't be built from an ArrayBuffer.
-  - `saveCapture` also rejects any upload whose stored size doesn't match.
-- **Revisit** `@react-native-firebase` only for native-only needs, such as Crashlytics, native Google sign-in or App Check with DeviceCheck/Play Integrity. Each needs a dev build and a web split.
-- **Emulators:** `EXPO_PUBLIC_USE_FIREBASE_EMULATORS=1` connects to local Auth, Firestore and Storage emulators (`apps/mobile/firebase.json`, project `demo-canisquest`). You can test end to end without touching production data.
-- **Rules:** `firestore.rules` and `storage.rules` are the emulator's rules and a proposal. Production rules live only in the console; compare the two before ever deploying these.
+### Next.js: `POST /api/identify`
+- **File:** `src/app/api/identify/route.ts`. The mobile app calls this; the web UI doesn't use it.
+- **Request:** header `Authorization: Bearer <Firebase ID token>`, JSON body `{ imageBase64, mimeType }`.
+- **Response:** `{ breedName, isMixed, confidence, rarity, candidateBreeds }`.
+- **Errors:**
+  - 401: missing or invalid token.
+  - 400: bad body or unsupported MIME type.
+  - 413: image larger than about 7.5 MB.
+  - 500: `GEMINI_API_KEY` or the project ID missing.
+  - 502: Gemini failed.
+- **Gemini call:** uses the **existing Genkit prompt**, moved unchanged into `src/ai/identify-dog-breed-prompt.ts` so the server action and the route share one definition.
+  - The web flow (`src/ai/flows/identify-dog-breed-from-image.ts`) keeps its catch-all "Mixed Breed" fallback, so **web behaviour is unchanged**.
+  - The route calls `identifyDogBreedStrict`, which lets Genkit errors through. A missing or invalid key, quota or network failure becomes a 502, never "Mixed Breed".
+  - Only an empty model answer still falls back, as on the web.
+- **Token check:** `src/lib/server/verify-firebase-token.ts` uses `jose` against Google's securetoken JWKS. The issuer and audience are the project ID: `FIREBASE_PROJECT_ID`, else `NEXT_PUBLIC_FIREBASE_PROJECT_ID`.
+- **Local testing:**
+  - `FIREBASE_AUTH_EMULATOR_HOST` makes the route accept the Auth emulator's unsigned tokens. The project then defaults to `demo-canisquest`.
+  - `GEMINI_MOCK=1` returns a fixed Labrador result.
+  - **Both are ignored when `NODE_ENV=production`**, so a deployed server can't be tricked by them.
+- **Tests:** `npm test` (vitest, new) runs the route contract, token verification, and prompt normalisation and strict-error behaviour.
 
-### Continuity for existing web users (same project, same data)
-Nothing is migrated: the Expo web build reads and writes the same Firestore paths and fields (inventory above) and the same Storage paths. Continuity comes from these points:
+### Expo app (`apps/mobile`)
+- **Stack:** Expo SDK 58, Expo Router with `NativeTabs`, and the Firebase JS SDK. Auth persists in AsyncStorage.
+- **Photos:** `expo-image-picker` and `expo-image-manipulator` (at most 1280 px wide, JPEG quality 0.7). Uploads build the Blob with XHR from the local file, because `fetch(file://)` stored a 14-byte body on Android.
+- **Styling:** inline styles from a typed theme (`src/theme.ts`, the web app's dark palette), Poppins, lucide icons. NativeWind is deferred until v5 is stable.
+- **API URL:** the app calls `${EXPO_PUBLIC_API_URL}/api/identify`. In development, if that is unset, it uses the Metro host on port 9002, the Next dev server.
+- **Dead sessions:** if the persisted session is no longer valid (user deleted or disabled, or the emulator was reset), the app starts a fresh guest session instead of getting stuck "offline".
+- **No web code:** no web output, no `.web.*` files, no `react-native-web`/`react-dom`.
 
-- **Auth session.** Firebase JS stores the signed-in user in IndexedDB, keyed by API key and app name (`[DEFAULT]`). If the Expo web build is served from the **same origin**, with the same `EXPO_PUBLIC_FIREBASE_*` values as today's `NEXT_PUBLIC_FIREBASE_*`, existing anonymous and Google users stay signed in. This matters most for anonymous users: a new origin would orphan their collections.
-- **Language.** The same `dogdex-language` key and the same zustand persist JSON (`{"state":{"language":"es"},"version":0}`), checked in the browser.
-- **Onboarding flag.** The same `dogexplorer_onboarding_completed = "true"` key, so returning users skip onboarding.
-- **Firebase authorised domains:** unchanged when the domain stays the same.
+### Hosting
+- **Firebase App Hosting** for the Next app, exactly as today. It now also serves `/api/identify`.
+- **Config:** App Hosting needs `GEMINI_API_KEY`, which the server action already uses, and the `NEXT_PUBLIC_FIREBASE_*` values, which the route reads for the project ID. Nothing new is required. Optionally set `FIREBASE_PROJECT_ID`.
+- **Native builds:** set `EXPO_PUBLIC_API_URL` to the App Hosting domain.
+- **Store builds:** EAS Build/Submit for the App Store and Play Store. No server hosting is needed for the Expo app.
 
-### Gemini: an Expo API route
-- **Decision:** `src/app/api/identify+api.ts` (`POST /api/identify`) calls the Gemini REST `generateContent` endpoint with a JSON response schema.
-  - The prompt is copied verbatim from the Genkit flow, and the model is `gemini-2.5-flash` (`GEMINI_MODEL` overrides it).
-  - The key goes in the `x-goog-api-key` header and is server-only (`GEMINI_API_KEY`, never `EXPO_PUBLIC_`).
-- **Auth:** the route requires `Authorization: Bearer <Firebase ID token>`.
-  - Tokens are verified with `jose` against Google's securetoken JWKS (issuer and audience = project ID).
-  - In emulator mode it accepts the emulator's unsigned tokens, which is also what firebase-admin does.
-  - Today's server action is effectively public, so this is stricter.
-- **Behaviour change:** upstream or config errors now return 502/500, and the client shows "Analysis failed". The Genkit flow silently returned "Mixed Breed 45%", even when the key was missing. Unparseable model output still falls back to "Mixed Breed".
-- **Why plain `fetch` and not Genkit:** it runs on any server target (Node, or Cloudflare Workers on EAS Hosting).
-- **Local dev without a key:** `GEMINI_MOCK=1` (server only) returns a fixed Labrador result.
-- **Client URL:**
-  - Web is same-origin.
-  - Native uses `EXPO_PUBLIC_API_URL`, falling back to the Metro host in development.
+### Duplicated logic: now permanent, so plan to centralise it
+Both clients write the same Firestore documents: entries, XP and level, achievements and public profiles. The progression rules exist twice:
+- web: `ReviewForm.tsx`
+- mobile: `apps/mobile/src/lib/progression.ts`, unit tested
 
-### Web hosting and deploy path
-`app.json` sets `web.output: "server"`, because the API routes need a server. `npx expo export -p web` produces `dist/client` (static) and `dist/server` (SSR plus `/api/*`). I verified this locally with `npx expo serve`: SSR, static assets, and `/api/identify` with 401 and 200 responses.
+Achievement definitions (`data.ts`) and breed translations are also copied.
 
-| Option | How | Pros | Cons |
-|---|---|---|---|
-| **A. EAS Hosting** (recommended for speed) | `eas deploy`, with the custom domain pointed at it and `GEMINI_API_KEY` as an EAS env secret | First-class Expo target, preview URLs per deploy, edge runtime | Hosting moves out of Firebase (a separate bill and dashboard). Cloudflare Workers runtime, which `/api/identify` is written for (fetch, WebCrypto, `jose`). |
-| **B. Firebase Hosting plus Cloud Run** (keeps everything in the Firebase project) | Serve `dist/client` from Firebase Hosting, and rewrite `/api/**` and SSR routes to a Cloud Run service running `expo-server`'s Node/Express adapter on `dist/server`. Secret in Secret Manager. | One project, one bill, same console. Domain and auth domain stay in Firebase. | More setup: a Dockerfile or buildpack plus `firebase.json` rewrites. Cold starts. |
-| **C. Firebase App Hosting** (what Next uses today) | App Hosting builds Node frameworks from `apphosting.yaml` with a custom build and start command (`expo export` then a Node server for `dist/server`) | Same product and rollout flow as today | App Hosting's first-class support is for Next.js and Angular. A custom Expo server has to be checked against the current App Hosting docs before choosing it. |
-
-- **Recommendation:** start with **A** for a preview URL while building parity. Decide between A and B for production with the owner; it is mostly about whether hosting must stay inside Firebase.
-- **Native builds:** point `EXPO_PUBLIC_API_URL` at whichever host serves `/api`.
-- **PWA:** `public/manifest.json` and the icons are copied from the Next app and served at the same paths. Head tags (`manifest`, `theme-color`, `apple-touch-icon`) are added with `expo-router/head` (`components/web-head.web.tsx`).
-  - **Caveat:** on this SDK build, any custom `src/app/+html.tsx` stopped the bundle `<script>` tags from being injected (I reproduced it with a minimal file), so the tags are added on the client after hydration rather than in the SSR HTML.
-  - Chrome picks up a manifest added at runtime, but **check installability with Lighthouse on the deployed build**. Revisit `+html.tsx` on the next SDK patch.
-
-### Styling: a typed theme with inline styles (NativeWind deferred)
-- **Decision:** `src/theme.ts` holds the tokens taken from `globals.css` (the dark palette the Next app forces), plus Poppins via `@expo-google-fonts/poppins`. The Expo UI guidelines recommend inline styles.
-- **Platforms:** this is cross-platform by construction (react-native-web), with nothing extra to configure.
-- **Why not NativeWind now:**
-  - NativeWind v5 (Tailwind 4) is still `5.0.0-rc.1` and needs a pinned `react-native-css` nightly.
-  - v4 targets Tailwind 3 and older Reanimated, and is unverified on RN 0.88.
-  - Most existing class strings are shadcn/Radix compositions that don't port anyway.
-- **Revisit** NativeWind once v5 is stable. The tokens map directly onto `@theme` variables.
-- **Radix/shadcn replacements** (all in `src/components/ui`):
-  - Button, Card, Chip and RarityBadge.
-  - Progress: a View bar.
-  - Switch: RN `Switch`.
-  - Tabs: chip rows.
-  - Toast and `confirm()`: inline notices and a two-step delete button. `window.confirm` and `Alert` behave differently per platform.
-  - Carousel: a paging `ScrollView`.
-- **Icons:** `lucide-react-native` (same icons as the web app) on all platforms. The native tab bar uses SF Symbols and Material icons.
-
-### Navigation
-- **Root stack:** `(tabs)`, `analyzing`, `review`, `entry/[id]`, `badges`, `onboarding`, and `dev/smoke` (development only).
-- **Tabs:** `NativeTabs` on iOS and Android (`components/app-tabs.tsx`). On web, `expo-router/ui` reproduces the Next app's bottom bar with the raised centre camera button (`components/app-tabs.web.tsx`).
-- **URLs:** the web paths keep the Next app's routes (`/capture`, `/stats`, `/ranking`, `/settings`, `/badges`, `/entry/:id`, `/review`, `/analyzing`). The exception is `/collection`, which is now `/`; `src/app/collection.tsx` redirects there, so old bookmarks keep working.
-
-### Capture (all platforms)
-- `expo-image-picker` for both camera and library.
-  - On web it is a file input (`capture` for the camera), the same as the Next app.
-  - On native it uses the system camera and photo picker.
-- `expo-image-manipulator` resizes to at most 1280 px wide, JPEG quality 0.7, before analysis and upload. The Next app sent full-size data URIs.
+Recommended next step: move the save into a Next route (`POST /api/captures`, Admin SDK) that both clients call. That removes the duplication, and stops clients writing arbitrary XP. Until then, any rule change must be made in both places.
 
 ## 4. Tracer slice
 
-> The Expo app boots and signs in anonymously with Firebase. You pick a photo. It is resized and sent with an ID token to `/api/identify` (Gemini on the server). The photo is uploaded to Storage, the entry is saved with the progression transaction (XP, level, achievements) in Firestore, and it appears in the live Collection list.
+> The iOS or Android app signs in anonymously and you pick a photo. The app resizes it and sends it with an ID token to the **Next** `/api/identify` route (Genkit, mocked locally). The photo is uploaded to Storage, the entry is saved with XP, level and achievements in Firestore, and it appears in the Collection.
 
-Status: `[x]` verified on **web** (headless Chrome against the emulators) and on **Android** (emulator with Expo Go). For iOS, only the production bundle was exported; it was **not run** on a simulator. See section 7.
+Status: `[x]`
+- **iOS:** simulator, Expo Go, driven by Maestro through the real photo picker.
+- **Android:** emulator, Expo Go, the dev smoke route.
+- Both ran against the Next dev server and the Firebase emulators. See section 7.
 
 ## 5. Increments
 
-1. `[x]` **Tracer** (see above).
-2. `[x]` **Review and edit capture:** editable breed with AI alternatives, nickname, notes, favourite, confidence and rarity, "New breed / +XP" reveal.
-3. `[x]` **Entry detail:** date, confidence, rarity, toggle favourite, two-step delete (Storage plus doc).
-4. `[x]` **Collection filters:** search, all or favourites, rarity chips, empty and no-results states.
-5. `[x]` **i18n en/es:** all strings in `lib/i18n.ts`, with a key-parity test. The language persists in the same key as the web app.
-6. `[~]` **Settings:**
-   - Done: language, account status, collector-name reservation, sign out, Google sign-in on **web**.
-   - On native, a notice explains Google sign-in isn't available yet (increment 11).
-   - Not exercised end to end: collector-name reservation and Google sign-in. Both need a non-guest account.
+1. `[x]` **Tracer** (above).
+2. `[x]` **Review and edit capture:** breed with AI alternatives, nickname, notes, favourite, "New breed / +XP" reveal.
+3. `[x]` **Entry detail:** favourite toggle, two-step delete (Storage plus doc).
+4. `[x]` **Collection:** search, favourites and rarity filters, empty states.
+5. `[x]` **i18n en/es**, with a key-parity test.
+6. `[~]` **Settings:** language, account status, collector name, sign out.
+   - Google sign-in is not available on native yet, and the app says so.
+   - Collector-name reservation needs a non-guest account, so it isn't exercised end to end.
 7. `[x]` **Stats.**
-8. `[x]` **Achievements** (`/badges`).
+8. `[x]` **Achievements.**
 9. `[x]` **Ranking.**
-10. `[x]` **Onboarding:** pager, same flag as the web app, works on web and Android.
-11. `[ ]` **Native Google sign-in:** `@react-native-google-signin/google-signin` (dev build) or `expo-auth-session`, then `signInWithCredential` / `linkWithCredential` so anonymous collections carry over. Needs iOS and Android OAuth client IDs.
-12. `[ ]` **Web parity checks before cut-over:** (the `/collection` redirect is already done)
-    - PWA installability (Lighthouse).
-    - Google popup on the real domain.
-    - Vercel Analytics, or a replacement.
-    - SSR head tags (`+html.tsx` issue).
-    - A visual pass against the Next app.
-13. `[ ]` **App identity:** `ios.bundleIdentifier` / `android.package`, EAS project, `eas.json`, store icons and splash.
-14. `[ ]` **Deploy:** choose hosting option A, B or C (section 3), set up a staging deploy and `EXPO_PUBLIC_API_URL` for native builds.
-15. `[ ]` **Hardening:**
-    - Commit and deploy the real Firestore and Storage rules.
-    - Delete should decrement counters and achievement progress (an existing bug in the Next app, kept as-is).
-    - Move the progression transaction to a server endpoint (Admin SDK) so clients can't write arbitrary XP.
-    - Rate-limit `/api/identify`, and add App Check.
-16. `[ ]` **Polish:** capture and reveal animations, haptics, iOS link previews and context menus, optional location capture (in the blueprint, never built), skeleton loaders.
-17. `[ ]` **Cut-over:** switch the domain to the Expo web build, keep the Next deploy for rollback for a while, then delete the Next code and Genkit.
+10. `[x]` **Onboarding.**
+11. `[ ]` **Native Google sign-in:** `@react-native-google-signin/google-signin` (dev build) or `expo-auth-session`. Then `linkWithCredential` so a guest collection is kept, and `signInWithCredential` to reach an existing web account. Needs iOS and Android OAuth client IDs.
+12. `[ ]` **Shared capture endpoint:** `POST /api/captures` in Next with the Admin SDK (section 3). Use it from both clients, and fix the existing delete bug (counters aren't decremented) there.
+13. `[ ]` **App identity and stores:** `ios.bundleIdentifier` / `android.package`, icons, splash, EAS project, `eas.json`, TestFlight and an internal Play track.
+14. `[ ]` **Hardening:**
+    - Commit the real Firestore and Storage rules.
+    - Rate-limit `/api/identify`.
+    - App Check (needs a dev build with `@react-native-firebase/app-check`, or the JS SDK's custom provider).
+15. `[ ]` **Polish:** capture and reveal animations, haptics, iOS context menus, skeletons, optional location capture.
+
+The web cut-over items from the previous version of this plan (Expo web build, PWA, `/collection` redirect, EAS Hosting / Cloud Run) are **dropped**.
 
 ## 6. What Dario (or the repo owner) must supply
 
-`apps/mobile/.env`, copied from `.env.example`:
-
-```
-EXPO_PUBLIC_FIREBASE_API_KEY=            # same values as NEXT_PUBLIC_FIREBASE_*
-EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=
-EXPO_PUBLIC_FIREBASE_PROJECT_ID=
-EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=
-EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
-EXPO_PUBLIC_FIREBASE_APP_ID=
-GEMINI_API_KEY=                          # server only
-```
-
-Also needed:
-- **Firebase console:** add `localhost` (and any preview domain) to Auth's authorised domains for web dev against the real project.
-- **Firebase console:** check that the production rules allow what the app does (see `apps/mobile/firestore.rules`).
-- **For native Google sign-in:** register iOS and Android apps in the Firebase project and create OAuth client IDs.
-- **Hosting decision** (section 3) and access to wherever it lands: an EAS account, or Firebase/GCP for Cloud Run.
+- `apps/mobile/.env` (see `.env.example`):
+  - `EXPO_PUBLIC_FIREBASE_*`: the same values as the web app's `NEXT_PUBLIC_FIREBASE_*`.
+  - `EXPO_PUBLIC_API_URL`: the App Hosting domain for builds, or `http://127.0.0.1:9002` locally.
+- Next app env: the existing `NEXT_PUBLIC_FIREBASE_*` and `GEMINI_API_KEY`. Nothing new.
+- **Firebase console:** check that the production rules allow what both apps do (compare with `apps/mobile/firestore.rules`).
+- **Native Google sign-in:** register iOS and Android apps in Firebase and create OAuth client IDs.
+- **Stores:** Apple Developer and Google Play accounts and an EAS project.
 
 ## 7. Verification log (2026-11-06)
 
-All runs were against the local Firebase emulators (`demo-canisquest`) with `GEMINI_MOCK=1`. **No run used the real Firebase project or a real Gemini key**, because none were available. The Gemini request and response handling is covered by unit tests with a stubbed `fetch`, but has not been run against the live API.
+All runs used the local Firebase emulators (`demo-canisquest`) and `GEMINI_MOCK=1`. **No run used the real Firebase project or a real Gemini key.** The live Genkit path is covered by unit tests with a stubbed prompt. A probe confirmed that Genkit throws on a missing or invalid key, which is what lets the route return 502.
 
-- **Typecheck:** `npx tsc --noEmit` is clean.
-- **Unit tests:** `npx jest` passes 24 tests in 8 suites:
-  - progression and XP
-  - Gemini request and normalisation
-  - ID-token verification
-  - base64
-  - i18n key parity
-  - filters
-  - stats
-  - trainer-name validation
-- **API route** (`curl`):
+**Next app** (repo root):
+
+- `npm ci`, then `npx tsc --noEmit`. **Already failing on `main`** with 10 errors in `entry/[id]/page.tsx`, `stats/page.tsx`, `DogCard.tsx`, `ui/calendar.tsx` and the Genkit flow. Now 9: the flow error went away with the refactor, and no new errors were added.
+- `npm run build` passes, as it did on `main` (`ignoreBuildErrors` is set).
+  - New: a webpack "Critical dependency" warning from Genkit's OpenTelemetry, because the route handler bundles Genkit. `main` builds without it.
+  - It is only a warning. If it bothers anyone, add Genkit to `serverExternalPackages`.
+- `npm test` (vitest) passes 14 tests in 3 files.
+- **Dev server** (`npm run dev`, port 9002) with `curl`:
   - no token gives 401
-  - a malformed token gives 401 (this was 500 before a fix)
-  - a missing image gives 400
-  - a valid emulator token plus an image gives 200
-- **Web:** `npx expo start --web` driven with headless Chrome (playwright-core with the installed Chrome).
-  - Tracer: empty collection, upload photo, review shows "Labrador Retriever 92%", save shows "New Breed! +3 XP", the entry appears in the collection, favourite toggle, two-step delete.
-  - Increments: onboarding and its flag, two captures, favourite/rarity/search filters, stats (2 captures, 4 XP), badges, ranking (seeded profile, re-sorted), Spanish language persisted as `dogdex-language`.
-  - No page errors.
-  - The Firestore emulator showed the expected user counters, entry fields and unlocked achievement.
-- **Web production build:** `npx expo export -p web` then `npx expo serve`. SSR, static files and `/api/identify` (401 and 200) all work.
-- **Android:** a dedicated `canisquest_api36` AVD with Expo Go 58.0.5, opening `exp://127.0.0.1:8095/--/dev/smoke` through `adb reverse`.
-  - The smoke route ran the real native pipeline: manipulator, then `/api/identify` via the Metro host, then Auth, a Storage upload (12,277 bytes) and the Firestore transaction, ending in `SMOKE PASS`.
-  - The collection then showed the photo. Native tabs, onboarding and stats rendered.
-  - This run is what exposed and verified the Android upload fix.
-- **iOS:**
-  - `npx expo export -p ios` built the Hermes bundle (8.2 MB).
-  - Expo Go 58.0.7 was installed on a dedicated simulator, but opening the URL hits iOS's "Open in Expo Go?" system prompt, which I had no way to tap headlessly. **The app was not run on iOS.**
-  - Next step: open it once by hand (`npx expo start` then `i`), or add `idb`/Maestro for automated taps.
+  - a malformed token gives 401
+  - no image gives 400
+  - an emulator token plus an image gives 200 (mock)
+  - `/` gives 200
+- **Production server** (`next start`):
+  - the route loads, including Genkit init
+  - no token gives 401
+  - **an emulator token is rejected (401) even with `FIREBASE_AUTH_EMULATOR_HOST` and `GEMINI_MOCK` set**
+  - `/`, `/collection` and `/capture` give 200
+
+**Expo app** (`apps/mobile`):
+- `npx tsc --noEmit` is clean.
+- `npx jest` passes 8 tests in 5 suites.
+- `npx expo-doctor` passes 20/20 checks.
+- **iOS:** simulator `canisquest-ios` (iOS 27.0) with Expo Go 58.0.7, driven by Maestro.
+  - Capture tab, Upload File, the system photo picker, then a tap on the photo.
+  - The review showed Labrador Retriever at 92%, served by the **Next** route.
+  - Nickname entered, Save, "New Breed! +3 XP", then the entry in the Collection.
+  - Firestore had the entry, the user had `xp 3` and `totalCaptures 1`, and the photo in Storage was 20,441 bytes.
+  - Repeated after removing Expo web, including the new Settings notice.
+- **Android:** emulator `canisquest_api36` with Expo Go 58.0.5, using `adb reverse` for 8097, 9002, 9099, 8080 and 9199.
+  - The `/dev/smoke` route printed `SMOKE PASS`: resize, then Next `/api/identify` (200), then Storage and the Firestore transaction.
+  - The Collection showed the photo.
+  - The first attempt exposed the dead-session hang, which is now fixed.
 
 ## 8. Running it
 
 ```bash
+# Next app (web + API), repo root
+npm ci
+npm run dev                                   # http://localhost:9002
+npm test && npm run build
+
+# Expo app
 cd apps/mobile
 npm install
-cp .env.example .env        # fill in Firebase + GEMINI_API_KEY, or use emulator mode below
-npx expo start              # then w (web), a (Android), i (iOS) or scan the QR code with Expo Go
+cp .env.example .env                          # Firebase values + EXPO_PUBLIC_API_URL
+npx expo start                                # i = iOS simulator, a = Android, or scan with Expo Go
 npm run typecheck && npm test
 ```
 
-**Emulator mode** (no real project needed). Put this in `.env`:
+**Local emulator mode** (no real project or key):
 
-```
-EXPO_PUBLIC_USE_FIREBASE_EMULATORS=1
-EXPO_PUBLIC_FIREBASE_EMULATOR_HOST=127.0.0.1
-FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099
-GEMINI_MOCK=1
+```bash
+npx firebase-tools@15 emulators:start --only auth,firestore,storage --project demo-canisquest   # in apps/mobile, JDK 21+
+FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 GEMINI_MOCK=1 npm run dev                           # repo root
+# apps/mobile/.env:
+#   EXPO_PUBLIC_USE_FIREBASE_EMULATORS=1
+#   EXPO_PUBLIC_FIREBASE_EMULATOR_HOST=127.0.0.1
+#   EXPO_PUBLIC_API_URL=http://127.0.0.1:9002
 ```
 
-Then:
-- Start the emulators: `npx firebase-tools@15 emulators:start --only auth,firestore,storage --project demo-canisquest` (needs JDK 21 or later).
-- On an Android emulator, run `adb reverse tcp:8081 tcp:8081` and do the same for ports 9099, 8080 and 9199.
-- **Native smoke test** (development only): open `<dev-server>/--/dev/smoke` in Expo Go. For example: `adb shell am start -a android.intent.action.VIEW -d "exp://127.0.0.1:8081/--/dev/smoke" host.exp.exponent`.
-- **Production web build:** `npx expo export -p web`, then `npx expo serve`.
+- **Android emulator:** run `adb reverse tcp:<port> tcp:<port>` for 8081, 9002, 9099, 8080 and 9199.
+- **Native smoke test** (development builds only): open `<metro-url>/--/dev/smoke` in Expo Go.
