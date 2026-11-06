@@ -1,5 +1,6 @@
-/** @jest-environment node */
-import { AuthError, verifyFirebaseIdToken } from '@/server/verify-token';
+import { describe, expect, it } from 'vitest';
+
+import { AuthError, verifyFirebaseIdToken } from '@/lib/server/verify-firebase-token';
 
 function unsignedJwt(payload: object) {
   const b64 = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
@@ -19,6 +20,8 @@ describe('verifyFirebaseIdToken (emulator mode)', () => {
 
 describe('verifyFirebaseIdToken (production mode)', () => {
   it('rejects an unsigned token without trusting it', async () => {
-    await expect(verifyFirebaseIdToken(unsignedJwt({ aud: 'p1', sub: 'u1', iss: 'https://securetoken.google.com/p1' }), 'p1')).rejects.toBeInstanceOf(AuthError);
+    await expect(
+      verifyFirebaseIdToken(unsignedJwt({ aud: 'p1', sub: 'u1', iss: 'https://securetoken.google.com/p1' }), 'p1')
+    ).rejects.toBeInstanceOf(AuthError);
   });
 });
