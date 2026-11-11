@@ -4,6 +4,8 @@ import { createContext, use, useEffect, useState, type ReactNode } from 'react';
 
 import { initialAchievements } from '@/lib/data';
 import { auth, db } from '@/lib/firebase';
+import { signInWithGoogleIdToken } from '@/lib/google-auth';
+import { getGoogleIdToken, signOutGoogle } from '@/lib/google-signin';
 import type { UserProfile } from '@/types';
 
 type AuthState = {
@@ -11,6 +13,8 @@ type AuthState = {
   userData: UserProfile | null;
   loading: boolean;
   error: string | null;
+  /** Shows the Google account sheet; resolves false if the user cancelled. */
+  signInWithGoogle: () => Promise<boolean>;
   signOutUser: () => Promise<void>;
 };
 
@@ -128,14 +132,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  async function signInWithGoogle() {
+    const idToken = await getGoogleIdToken();
+    if (!idToken) return false;
+    const signedIn = await signInWithGoogleIdToken(auth, idToken);
+    // Linking keeps the same user, so onAuthStateChanged doesn't fire: write the Google fields here,
+    // as the web does. The profile snapshot then re-renders with the linked (non-anonymous) user.
+    await createUserProfile(signedIn);
+    return true;
+  }
+
   async function signOutUser() {
     setUserData(null);
     setUser(null);
+    await signOutGoogle();
     await signOut(auth);
   }
 
   return (
-    <AuthContext value={{ user, userData, loading, error, signOutUser }}>
+    <AuthContext value={{ user, userData, loading, error, signInWithGoogle, signOutUser }}>
       {children}
     </AuthContext>
   );
