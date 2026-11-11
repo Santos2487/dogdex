@@ -1,0 +1,26 @@
+rules_version = '2';
+// Used by the local emulators. The production rules live in the Firebase console
+// and are not in the repo; compare before deploying these anywhere.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+
+    match /users/{uid} {
+      allow read, write: if isOwner(uid);
+      match /{sub=**} {
+        allow read, write: if isOwner(uid);
+      }
+    }
+
+    match /publicProfiles/{uid} {
+      allow read: if signedIn();
+      allow write: if isOwner(uid);
+    }
+
+    match /trainerNames/{name} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+    }
+  }
+}
