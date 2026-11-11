@@ -51,3 +51,8 @@ firebase-debug.log
 firestore-debug.log
 storage-debug.log
 ui-debug.log
+
+# Firebase native config files: not needed (client IDs are in app.json and src/lib/google-signin.ts).
+# If you download them from the Firebase console, keep them out of git.
+GoogleService-Info.plist
+google-services.json
