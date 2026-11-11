@@ -10,7 +10,7 @@ Target: **Expo SDK 58** (React Native 0.88, React 19.3, Expo Router 58, Node >= 
 - Next.js 15.5 (app router, turbopack), React 19.2, Tailwind 3 with shadcn/Radix UI, framer-motion, lucide-react, zustand, react-hook-form with zod.
 - Firebase JS SDK 11 (Auth, Firestore, Storage). The config comes from `NEXT_PUBLIC_FIREBASE_*` env vars in `src/lib/firebase.ts`. No `.env` is committed, and no `firebase.json` or `firestore.rules` is in the repo, so the rules live only in the Firebase console.
 - Genkit 1.20 with `@genkit-ai/google-genai` and model `googleai/gemini-2.5-flash`. The plugin reads `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) from the server env.
-- Firebase App Hosting (`apphosting.yaml`, maxInstances 1), Vercel Analytics, PWA manifest.
+- Hosted on **Vercel** (`dogdex-seven.vercel.app`), with Vercel Analytics and a PWA manifest. The repo still has an `apphosting.yaml` (Firebase App Hosting, maxInstances 1), but App Hosting is not used: its API was never enabled on the project, and Firebase Auth's authorized domains are `dogdex-seven.vercel.app` plus the Firebase defaults (checked 2026-11-11).
 - The theme is forced dark (`<html className="dark">`): background `#0C0A09`, primary yellow `hsl(45 100% 58%)` (about `#FFC72C`), accent orange `#FF934F`, and the Poppins font at weights 400, 600 and 700. The light palette (`#FAF8E7` background) is defined but unused.
 
 ### Screens (`src/app`)
@@ -42,11 +42,11 @@ Target: **Expo SDK 58** (React Native 0.88, React 19.3, Expo Router 58, Node >= 
 - Firebase Auth: anonymous sign-in on first launch, and Google (popup on web, linked to the anonymous account).
 - Firestore and Cloud Storage, as above.
 - Gemini 2.5 Flash through Genkit, on the server only, using `GEMINI_API_KEY`.
-- Vercel Analytics and Firebase App Hosting.
+- Vercel (hosting and Analytics).
 
 ## 2. Requirements (revised 2026-11-06)
 
-- **The Next.js site stays the web app.** It keeps its UI, server actions and Firebase App Hosting deploy. There is no Expo web build and no web cut-over.
+- **The Next.js site stays the web app.** It keeps its UI, server actions and Vercel deploy. There is no Expo web build and no web cut-over.
 - **The Expo app targets iOS and Android only.**
 - **One Firebase project** (Auth, Firestore, Storage) for both apps. Both read and write the same documents, so a capture made on a phone shows up on the web for the same account, and vice versa.
 - **The phones call a Next.js route handler** for Gemini (`POST /api/identify`). The Gemini key never ships in the app.
@@ -62,7 +62,7 @@ Target: **Expo SDK 58** (React Native 0.88, React 19.3, Expo Router 58, Node >= 
   - web UI + server actions (unchanged)   - Expo Router, NativeTabs
   - POST /api/identify  ◀──── HTTPS, Bearer Firebase ID token ────
       └─ Genkit prompt → Gemini 2.5 Flash (GEMINI_API_KEY, server only)
-  Deployed on Firebase App Hosting
+  Deployed on Vercel (dogdex-seven.vercel.app)
 ```
 
 ### Next.js: `POST /api/identify`
@@ -93,11 +93,37 @@ Target: **Expo SDK 58** (React Native 0.88, React 19.3, Expo Router 58, Node >= 
 - **API URL:** the app calls `${EXPO_PUBLIC_API_URL}/api/identify`. In development, if that is unset, it uses the Metro host on port 9002, the Next dev server.
 - **Dead sessions:** if the persisted session is no longer valid (user deleted or disabled, or the emulator was reset), the app starts a fresh guest session instead of getting stuck "offline".
 - **No web code:** no web output, no `.web.*` files, no `react-native-web`/`react-dom`.
+- **Development build required:** Google sign-in is a native module, so the app no longer runs in Expo Go. Use `npx expo run:ios` / `run:android` (or `npm run ios` / `android`) locally, or an EAS development build.
+
+### Native Google sign-in
+The goal: a user who signs in with Google in the app gets the **same Firebase UID** as on the web, so the same profile and collection.
+
+- **Library:** `@react-native-google-signin/google-signin` 17 (the free version). It is one of the two libraries in Expo's Google authentication guide, ships as an Expo module with a config plugin (`iosUrlScheme`), and installs cleanly on SDK 58 (`expo-doctor` 20/20). It returns a Google **ID token**, which the Firebase JS SDK accepts through `GoogleAuthProvider.credential(idToken)`, so we keep the JS SDK and don't need `@react-native-firebase` or the Firebase config files.
+  - Trade-off: on Android the free version wraps Google's legacy Sign-In SDK (deprecated but working). The other library in Expo's guide, `react-native-nitro-google-signin`, uses Android Credential Manager for free, but it is newer (June 2026, about 130k weekly downloads against about 1.7M) and adds `react-native-nitro-modules`. If Google removes the legacy SDK, switch to it: only `src/lib/google-signin.ts` and the plugin entry in `app.json` would change.
+- **Flow** (`src/lib/google-signin.ts`, `src/lib/google-auth.ts`, `signInWithGoogle` in `src/lib/auth.tsx`), the same as the web's `AuthContext.signInWithGoogle`:
+  1. Show the native Google sheet and get the ID token. Cancelling does nothing.
+  2. Guest (anonymous): `linkWithCredential`. The UID and its collection are kept.
+  3. `auth/credential-already-in-use` (the Google account already has a Firebase user, e.g. from the web): `signInWithCredential` with the credential from the error, so the user lands in that existing account. **The guest's captures are not migrated** (open issue #7), as on the web.
+  4. `createUserProfile` writes `authProvider: 'google'`, email, name and photo, as on the web.
+  5. Sign out also clears the native Google session, so the account picker shows next time.
+- **Firebase project `dogdex-d6dcf`** (registered 2026-11-11):
+
+  | | Bundle ID / package | Firebase app ID |
+  |---|---|---|
+  | iOS | `com.canisquest.app` | `1:554469466347:ios:ae7f9dc027da34255d9eae` |
+  | Android | `com.canisquest.app` | `1:554469466347:android:15856b71c8016d2f5d9eae` |
+
+- **OAuth clients** (created by Firebase; Google Cloud console > APIs & Services > Credentials):
+  - **Web client** `554469466347-mbibbn8qf7rhv29e48d98iq66ojvk6nb.apps.googleusercontent.com`. Passed as `webClientId`: it is the audience of the ID token, which Firebase Auth accepts.
+  - **iOS client** `554469466347-1u7bas7fo0pv8rb5qrv7q0iddq7eoghg.apps.googleusercontent.com`. Passed as `iosClientId`. Its reversed form, `com.googleusercontent.apps.554469466347-1u7bas7fo0pv8rb5qrv7q0iddq7eoghg`, is the `iosUrlScheme` in `app.json`.
+  - **Android client** `554469466347-0hls4fs8o7i5llnpr33f3ftkogg0v4c5.apps.googleusercontent.com`, tied to the package and the **debug keystore SHA-1** of Dario's machine (`~/.android/debug.keystore`). The app never references it: Google matches it by package name and signing certificate. Another developer's debug build needs their own SHA-1 added in Firebase (Project settings > Your apps > Android > Add fingerprint; `keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android`).
+- **Config:** the client IDs are public identifiers, so they are in the code (`src/lib/google-signin.ts`, overridable with `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` / `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`) and `app.json`. **No `GoogleService-Info.plist` or `google-services.json` is needed.** If you want them anyway (e.g. to adopt `@react-native-firebase` later), download them from Firebase console > Project settings > Your apps; they are gitignored in `apps/mobile`.
+- **Release builds:** Android release/EAS builds are signed with a different key, so Google sign-in fails with `DEVELOPER_ERROR` until that key's SHA-1 is added to the Android app in Firebase: the EAS keystore SHA-1 (`eas credentials`), and for Play Store builds also the **Play App Signing** SHA-1 (Play Console > Setup > App signing). iOS needs nothing extra.
 
 ### Hosting
-- **Firebase App Hosting** for the Next app, exactly as today. It now also serves `/api/identify`.
-- **Config:** App Hosting needs `GEMINI_API_KEY`, which the server action already uses, and the `NEXT_PUBLIC_FIREBASE_*` values, which the route reads for the project ID. Nothing new is required. Optionally set `FIREBASE_PROJECT_ID`.
-- **Native builds:** set `EXPO_PUBLIC_API_URL` to the App Hosting domain.
+- **Vercel** hosts the Next app (`https://dogdex-seven.vercel.app`), exactly as today. It now also serves `/api/identify`. Firebase App Hosting is **not** used, despite the `apphosting.yaml` in the repo (see section 1).
+- **Vercel env vars:** `/api/identify` needs `GEMINI_API_KEY` and the `NEXT_PUBLIC_FIREBASE_*` values (the route reads the project ID from `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, or from `FIREBASE_PROJECT_ID` if set). The web's server action already needs the same ones. Check that they are set for the Production environment in the Vercel project, then redeploy.
+- **Native builds:** set `EXPO_PUBLIC_API_URL=https://dogdex-seven.vercel.app`.
 - **Store builds:** EAS Build/Submit for the App Store and Play Store. No server hosting is needed for the Expo app.
 
 ### Duplicated logic: now permanent, so plan to centralise it
@@ -125,16 +151,15 @@ Status: `[x]`
 3. `[x]` **Entry detail:** favourite toggle, two-step delete (Storage plus doc).
 4. `[x]` **Collection:** search, favourites and rarity filters, empty states.
 5. `[x]` **i18n en/es**, with a key-parity test.
-6. `[~]` **Settings:** language, account status, collector name, sign out.
-   - Google sign-in is not available on native yet, and the app says so.
-   - Collector-name reservation needs a non-guest account, so it isn't exercised end to end.
+6. `[x]` **Settings:** language, account status, Google sign-in, collector name, sign out.
+   - Collector-name reservation needs a non-guest account, so it is only exercised after a real Google sign-in.
 7. `[x]` **Stats.**
 8. `[x]` **Achievements.**
 9. `[x]` **Ranking.**
 10. `[x]` **Onboarding.**
-11. `[ ]` **Native Google sign-in:** `@react-native-google-signin/google-signin` (dev build) or `expo-auth-session`. Then `linkWithCredential` so a guest collection is kept, and `signInWithCredential` to reach an existing web account. Needs iOS and Android OAuth client IDs.
+11. `[~]` **Native Google sign-in** (section 3): built, and the native Google sheet opens on iOS. Waiting for Dario's real sign-in test against production (section 8). Release builds need the EAS / Play signing SHA-1 added in Firebase.
 12. `[ ]` **Shared capture endpoint:** `POST /api/captures` in Next with the Admin SDK (section 3). Use it from both clients, and fix the existing delete bug (counters aren't decremented) there.
-13. `[ ]` **App identity and stores:** `ios.bundleIdentifier` / `android.package`, icons, splash, EAS project, `eas.json`, TestFlight and an internal Play track.
+13. `[~]` **App identity and stores:** `ios.bundleIdentifier` / `android.package` are `com.canisquest.app` (done). Still to do: icons, splash, EAS project, `eas.json`, TestFlight and an internal Play track, and the release SHA-1s for Google sign-in.
 14. `[ ]` **Hardening:**
     - Commit the real Firestore and Storage rules.
     - Rate-limit `/api/identify`.
@@ -147,10 +172,10 @@ The web cut-over items from the previous version of this plan (Expo web build, P
 
 - `apps/mobile/.env` (see `.env.example`):
   - `EXPO_PUBLIC_FIREBASE_*`: the same values as the web app's `NEXT_PUBLIC_FIREBASE_*`.
-  - `EXPO_PUBLIC_API_URL`: the App Hosting domain for builds, or `http://127.0.0.1:9002` locally.
+  - `EXPO_PUBLIC_API_URL`: `https://dogdex-seven.vercel.app` for builds, or `http://127.0.0.1:9002` locally.
 - Next app env: the existing `NEXT_PUBLIC_FIREBASE_*` and `GEMINI_API_KEY`. Nothing new.
 - **Firebase console:** check that the production rules allow what both apps do (compare with `apps/mobile/firestore.rules`).
-- **Native Google sign-in:** register iOS and Android apps in Firebase and create OAuth client IDs.
+- **Native Google sign-in:** done for development (section 3). For release builds, add the EAS and Play App Signing SHA-1s to the Android app in Firebase.
 - **Stores:** Apple Developer and Google Play accounts and an EAS project.
 
 ## 7. Verification log (2026-11-06)
@@ -191,6 +216,21 @@ All runs used the local Firebase emulators (`demo-canisquest`) and `GEMINI_MOCK=
   - The Collection showed the photo.
   - The first attempt exposed the dead-session hang, which is now fixed.
 
+### 2026-11-11: native Google sign-in
+
+Again against the local emulators with `GEMINI_MOCK=1`, except where noted. **No real Google account was used.**
+
+- `npx tsc --noEmit` is clean. `npx jest` passes 13 tests in 6 suites (new: `google-auth.test.ts`, the link / already-in-use / fallback / rethrow / no-guest paths).
+- `npx expo-doctor@1.21.6` passes 20/20. (`expo-doctor@latest`, 1.21.7 published that morning, crashes with `Cannot find module '@expo/env'`: an upstream packaging bug, not this project.)
+- Next app: `npm test` passes 14 tests in 3 files.
+- **iOS development build** (`npx expo run:ios`, simulator `canisquest-ios`), driven by Maestro:
+  - capture flow: Upload File, photo picker, review (Labrador Retriever 92% from the Next route), Save, reveal, and the entry in the Collection;
+  - Settings shows "Continue with Google" (and "Continuar con Google" in Spanish);
+  - tapping it shows the iOS "wants to use accounts.google.com to sign in" prompt, then Google's "Sign in to continue to DogDex" page, so the iOS client ID and URL scheme are accepted;
+  - closing the sheet returns to Settings, still a guest, with no error.
+- **Android development build** (`npx expo run:android`, emulator `canisquest_api36`, driven with `adb`): "Continue with Google" opens Google Play services' sign-in. The emulator has no Google account, so it shows Android's add-account screen; backing out returns to Settings with no error. Whether the debug SHA-1 matches can only be confirmed by completing a sign-in (a mismatch shows `DEVELOPER_ERROR`).
+- **Not tested:** completing a Google sign-in, linking, `credential-already-in-use`, and collector-name reservation. Dario does this against production (section 8).
+
 ## 8. Running it
 
 ```bash
@@ -203,7 +243,7 @@ npm test && npm run build
 cd apps/mobile
 npm install
 cp .env.example .env                          # Firebase values + EXPO_PUBLIC_API_URL
-npx expo start                                # i = iOS simulator, a = Android, or scan with Expo Go
+npx expo run:ios                              # or run:android; a development build, see below
 npm run typecheck && npm test
 ```
 
@@ -219,4 +259,25 @@ FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 GEMINI_MOCK=1 npm run dev            
 ```
 
 - **Android emulator:** run `adb reverse tcp:<port> tcp:<port>` for 8081, 9002, 9099, 8080 and 9199.
-- **Native smoke test** (development builds only): open `<metro-url>/--/dev/smoke` in Expo Go.
+- **Native smoke test** (development builds only): open `<metro-url>/--/dev/smoke` in the app.
+
+**Development build** (needed since Google sign-in; Expo Go no longer works):
+
+```bash
+cd apps/mobile
+npx expo run:ios                 # builds ios/ (gitignored), installs on a simulator and starts Metro
+npx expo run:android             # same for Android (JDK 17)
+# Later, JS-only changes: npx expo start, then open the installed CanisQuest app
+```
+
+**Real Google sign-in test against production** (Dario):
+
+1. `apps/mobile/.env.production-firebase` (gitignored, never commit) holds the production `EXPO_PUBLIC_FIREBASE_*` for `dogdex-d6dcf`, `EXPO_PUBLIC_API_URL=https://dogdex-seven.vercel.app` and `EXPO_PUBLIC_USE_FIREBASE_EMULATORS=0`. To recreate it, copy the web app's `NEXT_PUBLIC_FIREBASE_*` from Vercel or Firebase console > Project settings > Your apps > Web app.
+2. `cd apps/mobile && cp .env.production-firebase .env.local` (`.env.local` overrides `.env`; delete it to go back to the emulators).
+3. `npx expo run:ios` (or `npx expo start --clear` if the dev build is already installed). Android: `npx expo run:android` on a device or emulator signed with the debug keystore whose SHA-1 is in Firebase, with a Google account on it.
+4. **Same account as the web:** first sign in with Google at https://dogdex-seven.vercel.app and note the collection. In the app, as a guest, open Settings > Continue with Google and pick the same account. The app signs into that existing account (`credential-already-in-use`): Settings shows your name, and Collection, Stats and Ranking show the web collection. The UIDs must match: Firebase console > Authentication > Users should still list a single Google user for that email.
+5. **Linking a new account:** with a Google account that has never used CanisQuest, capture a dog as a guest, then Continue with Google. The capture stays (same UID, now with the Google provider in Firebase console > Authentication). Then sign in on the web with that account: the capture is there.
+6. Set a collector name in Settings, and check that it shows in Ranking on both apps.
+7. Sign out: the app starts a new guest session. Delete `.env.local` when done.
+
+If Google shows `DEVELOPER_ERROR` on Android, the build's signing SHA-1 is not registered (section 3). On iOS, an `invalid_audience` or similar error from Firebase means the `webClientId` doesn't belong to the project.
